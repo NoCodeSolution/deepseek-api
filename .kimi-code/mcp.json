@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.10.1"
+      ]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "caveman-shrink@0.1.1",
+        "node",
+        "D:/work/deepseek-api/.kimi-code/mcp-tools/node_modules/@playwright/mcp/cli.js",
+        "--browser",
+        "chrome"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "caveman-shrink@0.1.1",
+        "node",
+        "D:/work/deepseek-api/.kimi-code/mcp-tools/node_modules/@upstash/context7-mcp/dist/index.js"
+      ]
+    }
+  }
+}

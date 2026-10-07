@@ -2,3 +2,9 @@ node_modules/
 .browser-profile/
 auth.json
 *.log
+.kimi-code/local.toml
+.venv/
+__pycache__/
+*.egg-info/
+tmp-*/
+
