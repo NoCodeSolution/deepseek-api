@@ -2,8 +2,9 @@
 
 Стратегия (по плану):
 - при старте: auth.json → применить → тихий refresh из browser-profile;
-- на auth-ошибке DeepSeek: single-flight silent refresh → повтор запроса;
-  если снова ошибка — интерактивное окно логина → повтор;
+  если auth.json нет и заданы DS_EMAIL/DS_PASSWORD — headless-логин по кредам;
+- на auth-ошибке DeepSeek: single-flight silent refresh → headless-логин по кредам
+  (если заданы) → повтор запроса; если снова ошибка — интерактивное окно логина;
 - фоновый тихий refresh каждые REFRESH_INTERVAL_H часов.
 """
 from __future__ import annotations
@@ -16,6 +17,7 @@ from datetime import datetime, timezone
 from typing import Awaitable, Callable, TypeVar
 
 from .storage import AuthStorageError, read_saved_auth
+from .. import config
 from . import browser
 
 logger = logging.getLogger(__name__)
@@ -104,10 +106,19 @@ class AuthManager:
             if refreshed:
                 logger.info("Токен обновлён из профиля при старте")
         else:
-            self._drop("auth.json не найден")
-            logger.warning(
-                "Нет сохранённой авторизации. Выполни: deepseek-free-api --login"
-            )
+            # auth.json нет, но профиль браузера может быть жив — сначала silent
+            if await self._silent_refresh():
+                logger.info("Авторизация восстановлена из профиля при старте")
+            elif await self._credentials_login():
+                logger.info("Авторизация получена headless-логином при старте")
+            else:
+                reason = "auth.json не найден"
+                if config.DS_EMAIL and config.DS_PASSWORD:
+                    reason += "; headless-логин по кредам не удался (см. лог)"
+                self._drop(reason)
+                logger.warning(
+                    "Нет сохранённой авторизации. Выполни: deepseek-free-api --login"
+                )
 
         self._timer_task = asyncio.create_task(self._refresh_loop())
 
@@ -135,8 +146,27 @@ class AuthManager:
             return True
         return False
 
+    async def _credentials_login(self) -> bool:
+        """Headless-логин по DS_EMAIL/DS_PASSWORD, если креды заданы."""
+        if not (config.DS_EMAIL and config.DS_PASSWORD):
+            return False
+        try:
+            creds = await browser.headless_credentials_login()
+        except browser.BrowserAuthError as exc:
+            # Сообщения BrowserAuthError — свои, безопасны для лога
+            logger.warning("Headless-логин по кредам не удался: %s", exc)
+            return False
+        except Exception as exc:  # noqa: BLE001 - сеть/селекторы/капча
+            # Сырые исключения Playwright могут содержать креды/DOM — логируем только тип
+            logger.warning(
+                "Headless-логин по кредам упал: %s", type(exc).__name__
+            )
+            return False
+        self._apply(creds)
+        return True
+
     async def refresh(self, *, allow_interactive: bool = True) -> bool:
-        """Single-flight refresh: silent → интерактивная эскалация.
+        """Single-flight refresh: silent → headless по кредам → интерактивное окно.
 
         Повторные вызовы подряд (пачка параллельных запросов с протухшим
         токеном) не запускают браузер заново: увидев чужое успешное
@@ -153,6 +183,10 @@ class AuthManager:
                     logger.info("Авторизация обновлена (silent refresh)")
                     return True
                 logger.warning("Silent refresh не помог, сессия профиля мертва")
+                if await self._credentials_login():
+                    self._generation += 1
+                    logger.info("Авторизация восстановлена headless-логином по кредам")
+                    return True
                 if allow_interactive and self._interactive:
                     logger.warning("Открываю окно логина...")
                     try:

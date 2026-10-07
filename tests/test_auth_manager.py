@@ -64,6 +64,92 @@ def login_fail():
     return _impl
 
 
+def headless_ok(token="headless-tok"):
+    async def _impl():
+        return {"token": token, "cookieHeader": "ds_session_id=s"}
+
+    return _impl
+
+
+def headless_fail():
+    async def _impl():
+        raise browser.BrowserAuthError("капча")
+
+    return _impl
+
+
+def set_creds(monkeypatch, on: bool = True) -> None:
+    monkeypatch.setattr(manager.config, "DS_EMAIL", "a@b.c" if on else "")
+    monkeypatch.setattr(manager.config, "DS_PASSWORD", "pw" if on else "")
+
+
+@pytest.fixture(autouse=True)
+def _no_env_creds(monkeypatch) -> None:
+    """Гасим DS_EMAIL/DS_PASSWORD из окружения разработчика/CI."""
+    set_creds(monkeypatch, on=False)
+
+
+async def test_refresh_uses_headless_creds(monkeypatch, auth_dir) -> None:
+    """Silent fail → headless по кредам успешен → интерактивное окно не нужно."""
+    write_auth(auth_dir)
+    set_creds(monkeypatch)
+    monkeypatch.setattr(browser, "refresh_auth_from_profile", silent_fail())
+    monkeypatch.setattr(browser, "headless_credentials_login", headless_ok())
+    monkeypatch.setattr(browser, "login_and_save_auth", login_fail())
+    m = AuthManager(interactive=True, refresh_interval_h=999)
+    await m.startup()
+    await m.shutdown()
+    assert await m.refresh() is True
+    assert m.state == AuthState.READY
+    assert m.credentials["token"] == "headless-tok"
+
+
+async def test_refresh_headless_fail_falls_back_to_window(monkeypatch, auth_dir) -> None:
+    """Headless по кредам упал (капча) → эскалация в интерактивное окно."""
+    write_auth(auth_dir)
+    set_creds(monkeypatch)
+    monkeypatch.setattr(browser, "refresh_auth_from_profile", silent_fail())
+    monkeypatch.setattr(browser, "headless_credentials_login", headless_fail())
+    monkeypatch.setattr(browser, "login_and_save_auth", login_ok())
+    m = AuthManager(interactive=True, refresh_interval_h=999)
+    await m.startup()
+    await m.shutdown()
+    assert await m.refresh() is True
+    assert m.credentials["token"] == "login-tok"
+
+
+async def test_refresh_skips_headless_without_creds(monkeypatch, auth_dir) -> None:
+    """Без DS_EMAIL/DS_PASSWORD headless-шаг не вызывается."""
+    write_auth(auth_dir)
+    set_creds(monkeypatch, on=False)
+    calls = 0
+
+    async def counting():
+        nonlocal calls
+        calls += 1
+        return {"token": "t", "cookieHeader": "ds_session_id=s"}
+
+    monkeypatch.setattr(browser, "refresh_auth_from_profile", silent_fail())
+    monkeypatch.setattr(browser, "headless_credentials_login", counting)
+    m = AuthManager(interactive=False, refresh_interval_h=999)
+    await m.startup()
+    await m.shutdown()
+    assert await m.refresh(allow_interactive=False) is False
+    assert calls == 0
+
+
+async def test_startup_headless_login_without_auth_json(monkeypatch, auth_dir) -> None:
+    """Нет auth.json + заданы креды → silent не помог → headless-логин на старте."""
+    set_creds(monkeypatch)
+    monkeypatch.setattr(browser, "refresh_auth_from_profile", silent_fail())
+    monkeypatch.setattr(browser, "headless_credentials_login", headless_ok())
+    m = AuthManager(interactive=False, refresh_interval_h=999)
+    await m.startup()
+    await m.shutdown()
+    assert m.state == AuthState.READY
+    assert m.credentials["token"] == "headless-tok"
+
+
 async def test_startup_no_auth_expired(monkeypatch, auth_dir) -> None:
     monkeypatch.setattr(browser, "refresh_auth_from_profile", silent_fail())
     m = AuthManager(interactive=False, refresh_interval_h=999)

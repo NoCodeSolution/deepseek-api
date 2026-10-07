@@ -11,9 +11,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "caveman-shrink@0.1.1",
-        "node",
-        "D:/work/deepseek-api/.kimi-code/mcp-tools/node_modules/@playwright/mcp/cli.js",
+        "@playwright/mcp@0.0.83",
         "--browser",
         "chrome"
       ]
@@ -22,9 +20,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "caveman-shrink@0.1.1",
-        "node",
-        "D:/work/deepseek-api/.kimi-code/mcp-tools/node_modules/@upstash/context7-mcp/dist/index.js"
+        "@upstash/context7-mcp@4.1.3"
       ]
     }
   }

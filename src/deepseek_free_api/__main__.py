@@ -26,7 +26,11 @@ def build_parser() -> argparse.ArgumentParser:
         description="Бесплатный OpenAI-совместимый API через DeepSeek (браузерная авторизация).",
     )
     parser.add_argument("port", nargs="?", type=int, default=None, help="порт сервера")
-    parser.add_argument("--login", action="store_true", help="логин через окно Playwright")
+    parser.add_argument(
+        "--login",
+        action="store_true",
+        help="логин: headless по DS_EMAIL/DS_PASSWORD, при неудаче — окно Playwright",
+    )
     parser.add_argument(
         "--connect",
         nargs="?",
@@ -74,10 +78,25 @@ def main(argv: list[str] | None = None) -> int:
     if args.login:
         import asyncio
 
-        from .auth.browser import login_and_save_auth
+        from . import config
+        from .auth import browser
+        from .auth.browser import headless_credentials_login, login_and_save_auth
+
+        async def _login() -> None:
+            if config.DS_EMAIL and config.DS_PASSWORD:
+                try:
+                    await headless_credentials_login()
+                    return
+                except browser.BrowserAuthError as exc:
+                    print(f"⚠️ Headless-логин не удался ({exc}), открываю окно...")
+                except Exception as exc:  # noqa: BLE001 - не светим креды в stderr
+                    print(
+                        f"⚠️ Headless-логин упал ({type(exc).__name__}), открываю окно..."
+                    )
+            await login_and_save_auth()
 
         try:
-            asyncio.run(login_and_save_auth())
+            asyncio.run(_login())
         except Exception as exc:  # noqa: BLE001 - CLI: любая ошибка -> exit 1
             print(f"❌ {exc}", file=sys.stderr)
             return 1

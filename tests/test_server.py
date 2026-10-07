@@ -108,7 +108,8 @@ def test_auth_status(api: TestClient) -> None:
 # ─── chat completions ───────────────────────────────────────
 
 
-def test_non_stream_completion(api: TestClient, fake_client: FakeClient) -> None:
+def test_non_stream_completion(api: TestClient, fake_client: FakeClient, monkeypatch) -> None:
+    monkeypatch.setattr(server, "RESPONSE_FORMAT", "openai")
     response = api.post(
         "/v1/chat/completions",
         json={
@@ -142,6 +143,46 @@ def test_non_stream_chat_model_no_thinking(
     )
     assert response.status_code == 200
     assert fake_client.calls[0]["thinking_enabled"] is False
+
+
+def test_non_stream_plain_text_default(
+    api: TestClient, fake_client: FakeClient, monkeypatch
+) -> None:
+    """Дефолтный формат — голый текст для TMS, без JSON-обёртки."""
+    monkeypatch.setattr(server, "RESPONSE_FORMAT", "text")
+    response = api.post(
+        "/v1/chat/completions",
+        json={"model": "deepseek-chat", "messages": [{"role": "user", "content": "q"}]},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert response.text == "Ответ"
+
+
+def test_default_model_when_absent(api: TestClient, fake_client: FakeClient, monkeypatch) -> None:
+    monkeypatch.setattr(server, "RESPONSE_FORMAT", "openai")
+    monkeypatch.setattr(server, "DEFAULT_MODEL", "deepseek-chat")
+    response = api.post(
+        "/v1/chat/completions",
+        json={"messages": [{"role": "user", "content": "q"}]},
+    )
+    assert response.status_code == 200
+    assert response.json()["model"] == "deepseek-chat"
+    assert fake_client.calls[0]["thinking_enabled"] is False
+
+
+def test_unknown_model_maps_to_default(
+    api: TestClient, fake_client: FakeClient, monkeypatch
+) -> None:
+    monkeypatch.setattr(server, "RESPONSE_FORMAT", "openai")
+    monkeypatch.setattr(server, "DEFAULT_MODEL", "deepseek-chat")
+    response = api.post(
+        "/v1/chat/completions",
+        json={"model": "gpt-4o", "messages": [{"role": "user", "content": "q"}]},
+    )
+    assert response.status_code == 200
+    assert response.json()["model"] == "deepseek-chat"
+    assert fake_client.calls[0]["model_type"] is None
 
 
 def test_auth_error_maps_401(api: TestClient, monkeypatch) -> None:

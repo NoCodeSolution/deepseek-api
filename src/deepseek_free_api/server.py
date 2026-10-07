@@ -13,10 +13,17 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 
 from .auth.manager import AuthManager
-from .config import BASE_URL, DEFAULT_HOST, DEFAULT_PORT
+from .config import (
+    BASE_URL,
+    DEFAULT_HOST,
+    DEFAULT_MODEL,
+    DEFAULT_PORT,
+    LOG_REQUEST_BODIES,
+    RESPONSE_FORMAT,
+)
 from .converter import (
     completion_id,
     error_body,
@@ -95,6 +102,20 @@ def _resolve_model_type(model: str) -> str | None:
     return None
 
 
+def _resolve_model(model: str) -> str:
+    """Нормализация модели запроса: неизвестная → DEFAULT_MODEL (без thinking)."""
+    requested = (model or "").strip()
+    if not requested:
+        return DEFAULT_MODEL
+    lowered = requested.lower()
+    if lowered == DEFAULT_MODEL.lower() or "deepseek" in lowered:
+        return requested
+    logger.warning(
+        "Неизвестная модель %r, заменяю на дефолтную %r", requested, DEFAULT_MODEL
+    )
+    return DEFAULT_MODEL
+
+
 async def _attempt_completion(
     req: ChatCompletionRequest, queue: asyncio.Queue, emitted: list[bool]
 ) -> None:
@@ -104,7 +125,8 @@ async def _attempt_completion(
     try:
         session_id = await client.create_session()
         prompt = messages_to_prompt([m.model_dump() for m in req.messages])
-        model_type = _resolve_model_type(req.model)
+        model = _resolve_model(req.model)
+        model_type = _resolve_model_type(model)
         _, text, reasoning = await client.complete(
             session_id=session_id,
             prompt=prompt,
@@ -152,7 +174,8 @@ async def _stream_events(req: ChatCompletionRequest) -> AsyncIterator[str]:
     runner = asyncio.create_task(_run_completion(req, queue))
     chunk_id = completion_id()
     created = now_unix()
-    yield sse_frame(openai_chunk(chunk_id, created, req.model))
+    model = _resolve_model(req.model)
+    yield sse_frame(openai_chunk(chunk_id, created, model))
     try:
         while True:
             kind, payload = await queue.get()
@@ -161,14 +184,14 @@ async def _stream_events(req: ChatCompletionRequest) -> AsyncIterator[str]:
                     openai_chunk(
                         chunk_id,
                         created,
-                        req.model,
+                        model,
                         content=payload["content"] or None,
                         reasoning_content=payload["reasoning"] or None,
                     )
                 )
             elif kind == "done":
                 yield sse_frame(
-                    openai_chunk(chunk_id, created, req.model, finish_reason="stop")
+                    openai_chunk(chunk_id, created, model, finish_reason="stop")
                 )
                 yield openai_done_frame()
                 break
@@ -189,6 +212,27 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="DeepSeek Free API", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def log_422_body(request: Request, call_next):
+    if not LOG_REQUEST_BODIES:
+        return await call_next(request)
+    body = await request.body()
+
+    async def receive():
+        return {"type": "http.request", "body": body}
+
+    request = Request(request.scope, receive)
+    response = await call_next(request)
+    if response.status_code == 422:
+        logger.warning(
+            "422 body from %s %s: %s",
+            request.client.host if request.client else "?",
+            request.url.path,
+            body.decode(errors="replace"),
+        )
+    return response
 
 
 @app.middleware("http")
@@ -221,6 +265,10 @@ async def list_models() -> JSONResponse:
         {"id": "deepseek-reasoner", "object": "model", "created": now_unix(), "owned_by": "deepseek"},
         {"id": "deepseek-r1", "object": "model", "created": now_unix(), "owned_by": "deepseek"},
     ]
+    if DEFAULT_MODEL.lower() not in {m["id"].lower() for m in models}:
+        models.append(
+            {"id": DEFAULT_MODEL, "object": "model", "created": now_unix(), "owned_by": "deepseek"}
+        )
     return JSONResponse({"object": "list", "data": models})
 
 
@@ -269,6 +317,8 @@ async def chat_completions(req: ChatCompletionRequest, request: Request):
             if kind in ("text",):
                 continue
             if kind == "done":
+                if RESPONSE_FORMAT == "text":
+                    return PlainTextResponse(payload["text"])
                 full_id = completion_id()
                 usage = {
                     "prompt_tokens": estimate_tokens(payload["prompt"]),
@@ -281,7 +331,7 @@ async def chat_completions(req: ChatCompletionRequest, request: Request):
                     openai_full(
                         full_id,
                         now_unix(),
-                        req.model,
+                        _resolve_model(req.model),
                         payload["text"],
                         usage=usage,
                         reasoning_content=payload["reasoning"] or None,
@@ -304,6 +354,16 @@ def serve(port: int | None = None) -> None:
 
     port = port or int(os.environ.get("PORT", DEFAULT_PORT))
     host = os.environ.get("HOST", DEFAULT_HOST)
+    if host not in ("127.0.0.1", "localhost", "::1") and not PROXY_API_KEY:
+        logger.warning(
+            "Сервер слушает %s без PROXY_API_KEY — прокси открыт для сети! "
+            "Задай PROXY_API_KEY или HOST=127.0.0.1",
+            host,
+        )
+    display_host = host
+    hint = ""
+    if host in ("0.0.0.0", "::"):
+        hint = "  # слушаю все интерфейсы: с других машин — по IP этого ПК"
     print(
         f"""
 ╔══════════════════════════════════════════════════╗
@@ -312,11 +372,12 @@ def serve(port: int | None = None) -> None:
 ║  Порт:    {str(port):<39}║
 ║  Хост:    {host:<39}║
 ║══════════════════════════════════════════════════║
-║  POST http://localhost:{port}/v1/chat/completions
-║  GET  http://localhost:{port}/v1/models
-║  GET  http://localhost:{port}/health
-║  POST http://localhost:{port}/v1/auth/refresh
-╚══════════════════════════════════════════════════╝
-"""
+║  POST http://{display_host}:{port}/v1/chat/completions
+║  GET  http://{display_host}:{port}/v1/models
+║  GET  http://{display_host}:{port}/health
+║  POST http://{display_host}:{port}/v1/auth/refresh
+╚══════════════════════════════════════════════════╝{hint}
+""",
+        flush=True,
     )
     uvicorn.run(app, host=host, port=port, log_level="info")

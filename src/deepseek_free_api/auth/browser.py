@@ -7,17 +7,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any
 
 from playwright.async_api import (
     BrowserContext,
+    Page,
     Playwright,
     Response,
     async_playwright,
 )
 
+from .. import config
 from ..config import BASE_URL, BROWSER_PROFILE
 from .storage import (
     cookie_header_from_array,
@@ -36,9 +39,11 @@ class BrowserAuthError(Exception):
     """Ошибка браузерной авторизации."""
 
 
-async def _launch_persistent(playwright: Playwright, headless: bool) -> BrowserContext:
+async def _launch_persistent(
+    playwright: Playwright, headless: bool, env: dict | None = None
+) -> BrowserContext:
     profile_dir = Path(BROWSER_PROFILE)
-    profile_dir.mkdir(parents=True, exist_ok=True)
+    profile_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     async def try_launch() -> BrowserContext:
         try:
@@ -48,6 +53,7 @@ async def _launch_persistent(playwright: Playwright, headless: bool) -> BrowserC
                 viewport=None,
                 args=LAUNCH_ARGS,
                 channel="chrome",
+                env=env,
             )
         except Exception as chrome_exc:
             try:
@@ -56,6 +62,7 @@ async def _launch_persistent(playwright: Playwright, headless: bool) -> BrowserC
                     headless=headless,
                     viewport=None,
                     args=LAUNCH_ARGS,
+                    env=env,
                 )
             except Exception as chromium_exc:
                 raise BrowserAuthError(
@@ -103,7 +110,7 @@ def _validate_session(cookies: list[dict], token: str) -> None:
 
 
 async def _wait_for_auth_api_call(
-    context: BrowserContext, timeout_s: int = LOGIN_TIMEOUT_S
+    context: BrowserContext, timeout_s: float = LOGIN_TIMEOUT_S
 ) -> None:
     """Ждёт успешный авторизованный вызов API — признак завершённого входа."""
     done = asyncio.Event()
@@ -140,6 +147,83 @@ async def _wait_for_auth_api_call(
         raise BrowserAuthError(
             f"Таймаут входа {timeout_s}с. Залогинься в окне DeepSeek."
         ) from None
+
+
+async def _fill_login_form(page: Page) -> None:
+    """Заполняет форму входа DeepSeek кредами из env (DS_EMAIL/DS_PASSWORD)."""
+    email_input = page.locator(
+        'input[type="email"], input[name="email"], input[placeholder*="mail" i]'
+    ).first
+    try:
+        await email_input.wait_for(state="visible", timeout=15000)
+    except Exception as exc:
+        raise BrowserAuthError(
+            "Не нашёл форму логина (поле email) — возможно капча или Cloudflare"
+        ) from exc
+    await email_input.fill(config.DS_EMAIL)
+
+    password_input = page.locator('input[type="password"]').first
+    try:
+        await password_input.wait_for(state="visible", timeout=5000)
+    except Exception as exc:
+        raise BrowserAuthError("Не нашёл поле пароля в форме логина") from exc
+    await password_input.fill(config.DS_PASSWORD)
+
+    # Чекбокс согласия с условиями, если требуется
+    checkbox = page.locator('input[type="checkbox"]').first
+    try:
+        if await checkbox.is_visible(timeout=1000) and not await checkbox.is_checked():
+            await checkbox.check()
+    except Exception:  # noqa: BLE001 - чекбокс необязателен
+        pass
+
+    submit = page.locator(
+        'button[type="submit"], button:has-text("Log in"), button:has-text("登录")'
+    ).first
+    try:
+        await submit.wait_for(state="visible", timeout=5000)
+    except Exception as exc:
+        raise BrowserAuthError("Не нашёл кнопку входа в форме логина") from exc
+    await submit.click()
+
+
+def _masked_email(email: str) -> str:
+    local, _, domain = email.partition("@")
+    return f"{local[:1]}***@{domain}" if domain else "***"
+
+
+def _scrubbed_env() -> dict[str, str]:
+    """Окружение для Chromium без DS_* кредов (браузер не должен их видеть)."""
+    return {k: v for k, v in os.environ.items() if not k.startswith("DS_")}
+
+
+async def headless_credentials_login() -> dict[str, str]:
+    """Headless-логин по кредам DS_EMAIL/DS_PASSWORD без открытия окна."""
+    if not config.DS_EMAIL or not config.DS_PASSWORD:
+        raise BrowserAuthError("DS_EMAIL/DS_PASSWORD не заданы")
+    logger.info("Headless-логин по кредам для %s", _masked_email(config.DS_EMAIL))
+    async with async_playwright() as playwright:
+        context = await _launch_persistent(
+            playwright, headless=True, env=_scrubbed_env()
+        )
+        try:
+            page = context.pages[0] if context.pages else await context.new_page()
+            await page.goto(BASE_URL, wait_until="domcontentloaded")
+            waiter = asyncio.create_task(
+                _wait_for_auth_api_call(context, config.HEADLESS_LOGIN_TIMEOUT_S)
+            )
+            try:
+                await _fill_login_form(page)
+                await waiter
+            except Exception:
+                waiter.cancel()
+                raise
+            cookies, token = await _read_session_state(context)
+            _validate_session(cookies, token)
+            write_saved_auth(cookies=cookies, user_token=token)
+        finally:
+            await context.close()
+    return {"token": token, "cookieHeader": cookie_header_from_array(cookies)}
 
 
 async def login_and_save_auth() -> dict[str, str]:

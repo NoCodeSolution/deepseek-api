@@ -83,7 +83,7 @@ docs/SPEC.md                       # этот файл
 - **PoW glue** — посимвольный порт wbindgen-конвенций; кэш WASM в `~/.deepseek-free-api/sha3_wasm_bg.wasm` (при смене WASM править `config.DEEPSEEK_SHA3_WASM`).
 - **Endpoint удаления чата недокументирован** — best-effort (сбой логируется, ответ не портится); env-override `DS_CHAT_DELETE_PATH`.
 - **Дефолты безопасности:** HOST=`127.0.0.1`, входящий ключ прокси опционально (`PROXY_API_KEY`), CORS выключен.
-- **Auto-login при старте сервера НЕ открывается** — сервер стартует в любом состоянии, статус в `/health`; логин через `--login` или `POST /v1/auth/login`.
+- **Auto-login при старте сервера НЕ открывает окно** — сервер стартует в любом состоянии, статус в `/health`; при заданных `DS_EMAIL`/`DS_PASSWORD` старт пробует headless-логин (silent → креды), окно — только как fallback.
 - **Порт по умолчанию 18632.**
 - Тестовый интерактив (`--login`/окно эскалации) НЕЛЬЗЯ прогонять без присмотра — смоук-прогоны только с `INTERACTIVE_LOGIN=0` (иначе окно повиснет до таймаута 300с).
 
@@ -91,11 +91,16 @@ docs/SPEC.md                       # этот файл
 
 | Переменная | Дефолт | Назначение |
 |---|---|---|
+| (все) | — | задаются через env или `.env` в корне проекта (env > `.env`); шаблон — `.env.example` |
 | `PORT` / `HOST` | 18632 / 127.0.0.1 | адрес сервера |
 | `PROXY_API_KEY` | — | входящие запросы требуют `Authorization: Bearer <key>` |
 | `CORS_ORIGIN` | — | включить CORS для origin |
 | `DELETE_CHAT` | 1 | удалять чат после ответа |
 | `INTERACTIVE_LOGIN` | 1 | авто-открытие окна логина при протухании |
+| `DS_EMAIL` / `DS_PASSWORD` | — | headless авто-логин по кредам (форма DeepSeek без окна), fallback — окно |
+| `HEADLESS_LOGIN_TIMEOUT_S` | 60 | таймаут headless-логина, сек |
+| `DEFAULT_MODEL` | deepseek-chat | модель по умолчанию (без thinking) при отсутствии/неизвестной модели в запросе |
+| `RESPONSE_FORMAT` | text | non-stream: `text` = голый текст (text/plain, для TMS), `openai` = полный JSON |
 | `REFRESH_INTERVAL_H` | 6 | фоновый silent refresh, часов |
 | `RETRY_BACKOFF_S` | 2 | пауза повтора при 429/5xx |
 | `DEBUG` | 0 | лог SSE-событий |
