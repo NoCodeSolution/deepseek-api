@@ -1,6 +1,6 @@
 package com.nocodesolution.deepseek_free_api.services;
 
-/** Базовая ошибка DeepSeek API (порт DeepSeekError). */
+/** Базовая ошибка DeepSeek API. */
 public class DeepSeekException extends RuntimeException {
 
     public DeepSeekException(String message) {

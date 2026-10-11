@@ -28,7 +28,7 @@ import java.util.function.BiConsumer;
 import org.junit.jupiter.api.Test;
 
 /**
- * Unit-тесты оркестрации CompletionService (порт _run_completion из server.py):
+ * Unit-тесты оркестрации CompletionService:
  * retry/backoff до первого текста, отсутствие retry после первого текста,
  * удаление чата в finally. Без Spring-контекста и сети.
  */

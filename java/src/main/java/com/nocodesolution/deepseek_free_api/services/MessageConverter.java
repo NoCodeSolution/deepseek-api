@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Порт converter.py: messages→prompt и сборщики OpenAI-ответов. */
+/** messages→prompt и сборщики OpenAI-ответов. */
 public final class MessageConverter {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

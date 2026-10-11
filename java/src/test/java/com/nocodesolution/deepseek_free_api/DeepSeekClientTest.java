@@ -21,7 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestTemplate;
 
-/** Порт tests/test_ds_client.py на MockWebServer (11 тестов, 1:1). */
+/** Тесты клиента на MockWebServer (11 тестов). */
 class DeepSeekClientTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

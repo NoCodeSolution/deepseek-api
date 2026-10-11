@@ -15,7 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.ResponseEntity;
 
 /**
- * Порт tests/test_server.py (дефолтный deepseek.response-format=text).
+ * Тесты серверного слоя (дефолтный deepseek.response-format=text).
  * SSE-чанки сериализуются Jackson без пробелов: "ключ":"значение".
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)

@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Все эндпоинты прокси в одном контроллере (порт server.py):
+ * Все эндпоинты прокси в одном контроллере:
  * POST /v1/chat/completions (SSE-stream и non-stream), GET /v1/models, GET /health,
  * GET /v1/auth/status, POST /v1/auth/refresh, POST /v1/auth/login.
  */
@@ -230,7 +230,7 @@ public class ApiController {
         return usage;
     }
 
-    // ─── ошибки (порт _error_status/_error_payload) ─────────────
+    // ─── ошибки ───
 
     private static int errorStatus(Throwable exc) {
         if (exc instanceof AuthRequiredException) {

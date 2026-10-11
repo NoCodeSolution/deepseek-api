@@ -31,7 +31,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/** Порт tests/test_auth_manager.py (13 кейсов, 1:1). Браузер замокан — сети и браузера нет. */
+/** 13 кейсов AuthManager. Браузер замокан — сети и браузера нет. */
 @ExtendWith(MockitoExtension.class)
 class AuthManagerTest {
 

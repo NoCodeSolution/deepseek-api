@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.ResponseEntity;
 
-/** Порт кейсов test_server.py с RESPONSE_FORMAT=openai. */
+/** Кейсы с deepseek.response-format=openai. */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "deepseek.response-format=openai")

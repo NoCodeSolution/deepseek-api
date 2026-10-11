@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.ResponseEntity;
 
-/** Порт кейса test_proxy_api_key_enforced (PROXY_API_KEY задан через proxy.api-key). */
+/** Кейс с enforced PROXY_API_KEY (задан через proxy.api-key). */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "proxy.api-key=sekret")

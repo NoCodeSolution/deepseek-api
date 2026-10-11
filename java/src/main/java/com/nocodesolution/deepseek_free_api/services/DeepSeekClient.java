@@ -27,7 +27,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
-/** Порт ds_client.py: блокирующий клиент DeepSeek web API. */
+/** Блокирующий клиент DeepSeek web API. */
 public class DeepSeekClient {
 
     private static final Logger log = LoggerFactory.getLogger(DeepSeekClient.class);

@@ -17,7 +17,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Персистентность авторизации (порт storage.py, формат auth.json v1 без изменений). */
+/** Персистентность авторизации (формат auth.json v1). */
 public class AuthStorage {
 
     public static final int AUTH_FORMAT_VERSION = 1;
@@ -52,7 +52,7 @@ public class AuthStorage {
         if (input == null) {
             token = "";
         } else if (input instanceof JsonNode node) {
-            // узел уже декодирован — берём значение как есть (порт str() над распарсенным JSON)
+            // узел уже декодирован — берём значение как есть
             if (node.isNull()) {
                 return "";
             }
@@ -177,12 +177,12 @@ public class AuthStorage {
         payload.put("userToken", userToken);
         ArrayNode array = payload.putArray("cookies");
         cookies.forEach(array::add);
-        Files.writeString(authFile, MAPPER.writer(new PythonStylePrinter()).writeValueAsString(payload),
+        Files.writeString(authFile, MAPPER.writer(new AuthJsonPrinter()).writeValueAsString(payload),
                 StandardCharsets.UTF_8);
         try {
             Files.setPosixFilePermissions(authFile, PosixFilePermissions.fromString("rw-------"));
         } catch (UnsupportedOperationException | IOException e) {
-            // Windows и пр. — best-effort (порт except OSError: pass)
+            // Windows и пр. — best-effort
         }
     }
 
@@ -260,19 +260,18 @@ public class AuthStorage {
                 """);
     }
 
-    /** Как json.dumps(indent=2) в Python: 2 пробела, "key": value, массивы построчно. */
-    private static final class PythonStylePrinter extends DefaultPrettyPrinter {
+    /** Формат auth.json: 2 пробела отступ, "key": value, массивы построчно, \n-переносы. */
+    private static final class AuthJsonPrinter extends DefaultPrettyPrinter {
 
-        PythonStylePrinter() {
-            // Python json.dumps всегда пишет \n независимо от платформы
+        AuthJsonPrinter() {
             DefaultIndenter lf = new DefaultIndenter("  ", "\n");
             indentObjectsWith(lf);
             indentArraysWith(lf);
         }
 
         @Override
-        public PythonStylePrinter createInstance() {
-            return new PythonStylePrinter();
+        public AuthJsonPrinter createInstance() {
+            return new AuthJsonPrinter();
         }
 
         @Override

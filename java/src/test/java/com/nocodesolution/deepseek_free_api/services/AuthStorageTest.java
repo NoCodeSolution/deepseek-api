@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Порт tests/test_storage.py (16 кейсов) + 2 кейса формата auth.json. Всего 18. */
+/** 16 кейсов хранилища + 2 кейса формата auth.json. Всего 18. */
 class AuthStorageTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -165,10 +165,10 @@ class AuthStorageTest {
         assertThrows(AuthStorageException.class, () -> storage.importCookies(file.toString(), ""));
     }
 
-    // ─── формат файла (совместимость с Python/Node auth.json v1) ──
+    // ─── формат файла auth.json v1 ──
 
     @Test
-    void writeFormatMatchesPythonDumps() throws Exception {
+    void writeFormatMatchesV1() throws Exception {
         storage.writeSavedAuth(List.of(json("{\"name\": \"ds_session_id\", \"value\": \"сессия\"}")), "tok");
         String raw = Files.readString(authDir.resolve("auth.json"), StandardCharsets.UTF_8);
         assertTrue(raw.contains("сессия"), "не-ASCII должен писаться без экранирования");

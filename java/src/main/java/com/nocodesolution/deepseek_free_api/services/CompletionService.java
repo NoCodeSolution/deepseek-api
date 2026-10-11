@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Оркестрация completion (порт _attempt_completion/_run_completion из server.py):
+ * Оркестрация completion:
  * задача на виртуальном трейде складывает события в очередь, контроллер читает.
  * Режим «1 вопрос = 1 чат»: сессия удаляется в finally (аналог asyncio.shield —
  * удаление не прерывается отменой основной задачи).
@@ -117,7 +117,7 @@ public class CompletionService {
                 attemptCompletion(req, queue, emitted);
             }
         } catch (InterruptedException e) {
-            // отмена задачи контроллером (обрыв клиента) — как CancelledError в Python;
+            // отмена задачи контроллером (обрыв клиента);
             // терминальное событие в очередь, иначе ждущий take() в контроллере висит
             Thread.currentThread().interrupt();
             queue.offer(new CompletionEvent.ErrorEvent(e));

@@ -9,13 +9,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
- * Java-порт glue-класса _DeepSeekHash из pow_solver.py.
+ * Glue-класс к WASM-модулю DeepSeekHash.
  * Повторяет wbindgen-конвенции 1:1: __wbindgen_add_to_stack_pointer(-16),
  * __wbindgen_export_0 = malloc, __wbindgen_export_1 = realloc,
  * wasm_solve(retptr, ptr0, len0, ptr1, len1, difficulty:f64).
  *
  * <p>WASM исполняется в AoT-режиме Chicory ({@link AotMachine}) — интерпретатор
- * в ~200 раз медленнее Python. Instance thread-safe НЕ является, а ThreadLocal
+ * на порядки медленнее. Instance thread-safe НЕ является, а ThreadLocal
  * на виртуальных трейдах вырождается в instance-per-request (каждый запрос —
  * новый трейд → новая AoT-компиляция модуля на каждый completion). Поэтому
  * один общий Instance создаётся один раз (вместе с AoT-трансляцией), а все
@@ -55,7 +55,7 @@ public final class DeepSeekHashGlue {
         }
     }
 
-    /** Порт _encode_string: ascii-префикс через malloc, не-ascii через realloc (+3 байта/символ). */
+    /** Кодирование строки в WASM-память: ascii-префикс через malloc, не-ascii через realloc (+3 байта/символ). */
     private static long[] encodeString(Exports ex, String text) {
         int strLength = text.length();
         long ptr = ex.malloc.apply(strLength, 1)[0] & 0xFFFFFFFFL;

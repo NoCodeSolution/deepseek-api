@@ -1,6 +1,6 @@
 package com.nocodesolution.deepseek_free_api.services;
 
-/** Событие оркестрации completion (порт кортежей asyncio-очереди из server.py). */
+/** Событие оркестрации completion. */
 public sealed interface CompletionEvent {
 
     /** Промежуточный кусок ответа: content и/или reasoning (пустые строки допустимы). */

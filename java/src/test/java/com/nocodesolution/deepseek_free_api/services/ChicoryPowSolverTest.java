@@ -59,7 +59,7 @@ class ChicoryPowSolverTest {
         return map;
     }
 
-    // ─── эталонные векторы (записаны с реального Python-прогона) ───
+    // ─── эталонные векторы (записаны с реального прогона WASM-модуля) ───
 
     @Test
     void vector1() {
@@ -75,7 +75,7 @@ class ChicoryPowSolverTest {
         assertEquals(44911L, answer);
     }
 
-    // ─── негативы (паритет tests/test_pow_solver.py) ───
+    // ─── негативы ───
 
     @Test
     void oddLengthChallengeIsPowExceptionNotCrash() {
@@ -162,7 +162,7 @@ class ChicoryPowSolverTest {
 
     @Test
     void stringFieldsRejected() {
-        // паритет test_string_fields_coerced: строковый expire_at не принимается
+        // строковый expire_at не принимается
         PowException ex = assertThrows(PowException.class, () -> solver.solve(challenge(
                 "DeepSeekHashV1", "abc", "123", "5", "1893456000")));
         assertEquals("PoW challenge is missing expire_at.", ex.getMessage());

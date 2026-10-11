@@ -70,7 +70,7 @@ public class ServiceConfig {
         return new PromptSanitizer(privacy.maskSecrets(), patterns);
     }
 
-    /** Фабрика клиентов со свежими кредами из AuthManager (порт _new_client из server.py). */
+    /** Фабрика клиентов со свежими кредами из AuthManager. */
     @Bean
     public Supplier<DeepSeekClient> deepSeekClientFactory(
             RestTemplate restTemplate, Deepseek deepseek, AuthManager authManager, PowSolver powSolver) {

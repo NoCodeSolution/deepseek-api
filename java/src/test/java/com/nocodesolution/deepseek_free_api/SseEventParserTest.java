@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** Порт tests/test_sse.py (12 тестов, 1:1). */
+/** Разбор SSE-событий (12 тестов). */
 class SseEventParserTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

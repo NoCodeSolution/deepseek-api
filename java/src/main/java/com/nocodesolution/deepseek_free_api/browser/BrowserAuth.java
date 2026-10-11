@@ -2,7 +2,7 @@ package com.nocodesolution.deepseek_free_api.browser;
 
 import com.nocodesolution.deepseek_free_api.services.Credentials;
 
-/** Браузерная авторизация (порт browser.py). Реализация — Playwright (синхронный API). */
+/** Браузерная авторизация. Реализация — Playwright (синхронный API). */
 public interface BrowserAuth {
 
     /** Тихий refresh из профиля; null — сессия профиля мертва или браузер недоступен. */

@@ -20,7 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
- * Общий стенд HTTP-тестов серверного слоя (порт фикстур test_server.py):
+ * Общий стенд HTTP-тестов серверного слоя:
  * реальные AuthManager/ChicoryPowSolver (WASM) заменены моками, DeepSeekClient —
  * фейком через бин-фабрику. Сети и браузера нет.
  */

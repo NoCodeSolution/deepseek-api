@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-/** Порт sse.py: разбор SSE-событий и извлечение дельт текста DeepSeek. */
+/** Разбор SSE-событий и извлечение дельт текста DeepSeek. */
 public final class SseEventParser {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

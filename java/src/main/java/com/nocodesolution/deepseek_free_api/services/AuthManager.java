@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * AuthManager: состояние авторизации, тихий refresh, эскалация до интерактивного входа
- * (порт manager.py). Single-flight: ReentrantLock + generation-счётчик.
+ * Single-flight: ReentrantLock + generation-счётчик.
  */
 public class AuthManager {
 

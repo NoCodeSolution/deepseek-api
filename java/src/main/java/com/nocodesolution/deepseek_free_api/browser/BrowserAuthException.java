@@ -1,6 +1,6 @@
 package com.nocodesolution.deepseek_free_api.browser;
 
-/** Ошибка браузерной авторизации (порт BrowserAuthError). Сообщения — свои, безопасны для лога. */
+/** Ошибка браузерной авторизации. Сообщения — свои, безопасны для лога. */
 public class BrowserAuthException extends RuntimeException {
 
     public BrowserAuthException(String message) {

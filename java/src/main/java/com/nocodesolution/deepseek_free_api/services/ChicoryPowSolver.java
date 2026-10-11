@@ -7,10 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Решатель PoW-челленджа DeepSeek на Chicory в AoT-режиме (порт solve_pow
- * из pow_solver.py). WASM-байты загружаются лениво при первом solve (паритет
- * lru_cache Python-версии): кэш в auth.dir или скачивание по
- * deepseek.pow-wasm-url; модуль парсится один раз.
+ * Решатель PoW-челленджа DeepSeek на Chicory в AoT-режиме.
+ * WASM-байты загружаются лениво при первом solve: кэш в auth.dir
+ * или скачивание по deepseek.pow-wasm-url; модуль парсится один раз.
  */
 @Component
 public final class ChicoryPowSolver implements PowSolver {

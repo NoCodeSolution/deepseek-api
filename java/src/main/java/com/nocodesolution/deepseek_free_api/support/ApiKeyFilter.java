@@ -15,7 +15,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Проверка Bearer-ключа (порт proxy_api_key dependency из Python).
+ * Проверка Bearer-ключа для входящих запросов.
  * Без @Component: регистрация только явная, через FilterRegistrationBean
  * в WebConfig — иначе Spring Boot дополнительно вставляет любой Filter-бин
  * в общую цепочку, и фильтр оказывается в ней дважды.

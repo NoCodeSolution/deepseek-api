@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 
-/** Фейк DeepSeekClient (порт FakeClient из tests/test_server.py): без сети, записывает вызовы. */
+/** Фейк DeepSeekClient: без сети, записывает вызовы. */
 public class FakeDeepSeekClient extends DeepSeekClient {
 
     public record Call(

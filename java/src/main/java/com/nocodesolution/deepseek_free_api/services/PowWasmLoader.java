@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Порт _load_wasm_bytes из pow_solver.py: байты wasm читаются из кэш-файла
+ * Байты wasm читаются из кэш-файла
  * в каталоге auth.dir; если кэша нет — скачиваются по deepseek.pow-wasm-url
  * (таймаут 30 с) и best-effort пишутся в кэш.
  */

@@ -34,7 +34,7 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Браузерная авторизация через Playwright (1:1 порт browser.py, синхронный API). */
+/** Браузерная авторизация через Playwright (синхронный API). */
 public class BrowserAuthService implements BrowserAuth {
 
     public static final String DEFAULT_BASE_URL = "https://chat.deepseek.com";
@@ -71,7 +71,7 @@ public class BrowserAuthService implements BrowserAuth {
         this.authStorage = authStorage;
     }
 
-    // ─── Режимы (порт browser.py) ───────────────────────────────
+    // ─── Режимы ────────────────────────────────────────────────────────────
 
     @Override
     public Credentials refreshFromProfile() throws BrowserAuthException {
@@ -226,7 +226,7 @@ public class BrowserAuthService implements BrowserAuth {
         }
     }
 
-    // ─── Запуск браузера (порт _launch_persistent) ──────────────
+    // ─── Запуск браузера ──────────────────────────────────────
 
     private BrowserContext launchPersistent(Playwright playwright, boolean headless, Map<String, String> env)
             throws BrowserAuthException {
@@ -238,7 +238,7 @@ public class BrowserAuthService implements BrowserAuth {
         try {
             Files.setPosixFilePermissions(browserProfile, PosixFilePermissions.fromString("rwx------"));
         } catch (UnsupportedOperationException | IOException ignored) {
-            // best-effort, порт mode=0o700
+            // best-effort, права 0o700
         }
         try {
             return tryLaunch(playwright, headless, env);
@@ -361,11 +361,11 @@ public class BrowserAuthService implements BrowserAuth {
         return node;
     }
 
-    // ─── Ожидание авторизованного вызова API (порт _wait_for_auth_api_call) ──
+    // ─── Ожидание авторизованного вызова API ──
 
     private static final class AuthApiWait {
         private final CompletableFuture<Void> done = new CompletableFuture<>();
-        private final Object timeoutS; // Integer — интерактив (300), Double — headless (60.0), как в Python
+        private final Object timeoutS; // Integer — интерактив (300), Double — headless (60.0)
         private final long startedNanos = System.nanoTime();
 
         AuthApiWait(Object timeoutS) {
@@ -434,7 +434,7 @@ public class BrowserAuthService implements BrowserAuth {
         return "";
     }
 
-    // ─── Форма логина (порт _fill_login_form) ───────────────────
+    // ─── Форма логина ─────────────────────────────────────────
 
     private void fillLoginForm(Page page) throws BrowserAuthException {
         Locator emailInput = page.locator(

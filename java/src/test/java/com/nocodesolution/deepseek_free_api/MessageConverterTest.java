@@ -12,7 +12,7 @@ import com.nocodesolution.deepseek_free_api.services.MessageConverter;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** Порт tests/test_converter.py (9 тестов, 1:1). */
+/** Тесты конвертера сообщений (9 тестов). */
 class MessageConverterTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
