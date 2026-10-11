@@ -1,9 +1,10 @@
 # DeepSeek Free API (Java / Spring Boot)
 
-OpenAI-совместимый прокси поверх web-аккаунта DeepSeek — Java-версия
-(Spring Boot 3.5.16, Java 21). Полный функциональный паритет с Python-версией
-(см. корневой [README.md](../README.md)), плюс режим маскирования секретов
-в исходящих запросах (PromptSanitizer — в Python-версии этой фичи нет).
+OpenAI-совместимый прокси поверх web-аккаунта DeepSeek (Spring Boot 3.5.16,
+Java 21): сервер + CLI `--login`/`--connect`/`--import`/`--manual`,
+auth.json v1, режим маскирования секретов в исходящих запросах
+(PromptSanitizer). Общее описание и быстрый старт — в корневом
+[README.md](../README.md).
 
 ## Требования
 
@@ -30,12 +31,12 @@ java -jar target/deepseek-free-api-0.0.1-SNAPSHOT.jar --import cookies.json "<us
 java -jar target/deepseek-free-api-0.0.1-SNAPSHOT.jar --manual     # инструкция по экспорту из DevTools
 ```
 
-CLI-режимы читают env напрямую (как Python-версия): `DS_EMAIL`, `DS_PASSWORD`,
+CLI-режимы читают env напрямую: `DS_EMAIL`, `DS_PASSWORD`,
 `DEEPSEEK_FREE_AUTH_DIR`, `HEADLESS_LOGIN_TIMEOUT_S`.
 Если заданы `DS_EMAIL`/`DS_PASSWORD`, `--login` сначала пробует headless-логин
 по кредам, при неудаче — открывает окно.
 
-Сессия (auth.json v1, совместим с Python/Node-версией), browser-profile и кэш
+Сессия (auth.json v1), browser-profile и кэш
 WASM лежат в `~/.deepseek-free-api/` (переопределяется `AUTH_DIR` /
 `auth.dir`).
 
@@ -44,8 +45,7 @@ WASM лежат в `~/.deepseek-free-api/` (переопределяется `AU
 Настройки — через `application.properties`, env-переменные или `.env` в текущей
 рабочей директории. Приоритет: реальные env-переменные > `.env` > дефолты
 (`.env` ничего не перезаписывает). Имена env — Spring relaxed binding
-(`proxy.api-key` ↔ `PROXY_API_KEY`); часть имён совпадает с Python-версией,
-часть отличается — см. таблицу.
+(`proxy.api-key` ↔ `PROXY_API_KEY`) — см. таблицу.
 
 | Свойство | Env-переменная | Дефолт | Назначение |
 |---|---|---|---|
@@ -56,28 +56,26 @@ WASM лежат в `~/.deepseek-free-api/` (переопределяется `AU
 | `deepseek.base-url` | `DEEPSEEK_BASE_URL` | https://chat.deepseek.com | базовый URL DeepSeek |
 | `deepseek.app-version` | `DEEPSEEK_APP_VERSION` | 2.0.0 | заголовок x-app-version |
 | `deepseek.completion-path` | `DEEPSEEK_COMPLETION_PATH` | /api/v0/chat/completion | endpoint completion |
-| `deepseek.chat-delete-path` | `DEEPSEEK_CHAT_DELETE_PATH` | /api/v0/chat_session/delete | endpoint удаления чата (в Python — `DS_CHAT_DELETE_PATH`) |
-| `deepseek.delete-chat` | `DEEPSEEK_DELETE_CHAT` | true | удалять чат после ответа (в Python — `DELETE_CHAT`) |
-| `deepseek.default-model` | `DEEPSEEK_DEFAULT_MODEL` | deepseek-chat | модель по умолчанию (в Python — `DEFAULT_MODEL`) |
-| `deepseek.response-format` | `DEEPSEEK_RESPONSE_FORMAT` | text | non-stream формат: `text` (голый текст) / `openai` (полный JSON) (в Python — `RESPONSE_FORMAT`) |
-| `deepseek.retry-backoff-s` | `DEEPSEEK_RETRY_BACKOFF_S` | 2 | пауза повтора при 429/5xx (в Python — `RETRY_BACKOFF_S`) |
-| `deepseek.log-sse` | `DEEPSEEK_LOG_SSE` | false | дамп SSE-событий в лог (в Python — `DEBUG`) |
+| `deepseek.chat-delete-path` | `DEEPSEEK_CHAT_DELETE_PATH` | /api/v0/chat_session/delete | endpoint удаления чата |
+| `deepseek.delete-chat` | `DEEPSEEK_DELETE_CHAT` | true | удалять чат после ответа |
+| `deepseek.default-model` | `DEEPSEEK_DEFAULT_MODEL` | deepseek-chat | модель по умолчанию |
+| `deepseek.response-format` | `DEEPSEEK_RESPONSE_FORMAT` | text | non-stream формат: `text` (голый текст) / `openai` (полный JSON) |
+| `deepseek.retry-backoff-s` | `DEEPSEEK_RETRY_BACKOFF_S` | 2 | пауза повтора при 429/5xx |
+| `deepseek.log-sse` | `DEEPSEEK_LOG_SSE` | false | дамп SSE-событий в лог |
 | `deepseek.connect-timeout-ms` | `DEEPSEEK_CONNECT_TIMEOUT_MS` | 30000 | connect-таймаут |
 | `deepseek.read-timeout-ms` | `DEEPSEEK_READ_TIMEOUT_MS` | 0 | read-таймаут; 0 = бесконечный SSE-стрим |
-| `deepseek.pow-wasm-url` | `DEEPSEEK_SHA3_WASM` | URL fe-static.deepseek.com | URL sha3_wasm_bg.wasm для кэша в `<auth.dir>` (имя env — как в Python) |
+| `deepseek.pow-wasm-url` | `DEEPSEEK_SHA3_WASM` | URL fe-static.deepseek.com | URL sha3_wasm_bg.wasm для кэша в `<auth.dir>` |
 | `auth.dir` | `AUTH_DIR` | ~/.deepseek-free-api | auth.json, browser-profile, кэш WASM |
-| `auth.interactive-login` | `AUTH_INTERACTIVE_LOGIN` | true | авто-открытие окна логина при протухании (в Python — `INTERACTIVE_LOGIN`) |
-| `auth.refresh-interval-h` | `AUTH_REFRESH_INTERVAL_H` | 6 | фоновый silent refresh, часов (в Python — `REFRESH_INTERVAL_H`) |
+| `auth.interactive-login` | `AUTH_INTERACTIVE_LOGIN` | true | авто-открытие окна логина при протухании |
+| `auth.refresh-interval-h` | `AUTH_REFRESH_INTERVAL_H` | 6 | фоновый silent refresh, часов |
 | `auth.email` | `AUTH_EMAIL` | — | креды для headless авто-логина (CLI читает `DS_EMAIL`) |
 | `auth.password` | `AUTH_PASSWORD` | — | креды для headless авто-логина (CLI читает `DS_PASSWORD`) |
 | `auth.headless-login-timeout-s` | `AUTH_HEADLESS_LOGIN_TIMEOUT_S` | 60 | таймаут headless-логина, сек (CLI читает `HEADLESS_LOGIN_TIMEOUT_S`) |
 | `privacy.mask-secrets` | `PRIVACY_MASK_SECRETS` | true | маскировать секреты в исходящем prompt |
 | `privacy.mask-patterns` | `PRIVACY_MASK_PATTERNS` | — | доп. regex-шаблоны через запятую |
 
-Пример `.env` — корневой [`.env.example`](../.env.example); имена общие там, где
-они совпадают (`PROXY_API_KEY`, `CORS_ORIGIN`, `DS_EMAIL`, `DS_PASSWORD`,
-`HEADLESS_LOGIN_TIMEOUT_S`, `DEEPSEEK_SHA3_WASM`), а также новые, только для
-Java-версии: `PRIVACY_MASK_SECRETS`, `PRIVACY_MASK_PATTERNS`.
+Пример `.env` — список переменных из таблицы выше, по одной на строку
+(`KEY=value`). Реальные env-переменные имеют приоритет над `.env`.
 
 ## Endpoints
 
