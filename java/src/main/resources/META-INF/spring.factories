@@ -1,2 +1,0 @@
-org.springframework.boot.env.EnvironmentPostProcessor=\
-com.nocodesolution.deepseek_free_api.config.DotenvEnvironmentPostProcessor

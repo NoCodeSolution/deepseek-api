@@ -5,18 +5,14 @@ import com.nocodesolution.deepseek_free_api.browser.BrowserAuthException;
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuthService;
 import com.nocodesolution.deepseek_free_api.services.AuthStorage;
 import com.nocodesolution.deepseek_free_api.services.AuthStorageException;
-import com.nocodesolution.deepseek_free_api.support.DotenvLoader;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 
 /**
- * CLI-режимы (порт __main__.py): --manual, --import, --login, --connect.
+ * CLI-режимы: --manual, --import, --login, --connect.
  * Объекты собираются вручную, без Spring-контекста; режимы не стартуют Tomcat.
- * Окружение читается через {@link #env(String)}: реальные env-переменные,
- * при их отсутствии — .env из рабочей директории (паритет с Python, где
- * .env грузится до всего).
+ * Окружение читается через {@link #env(String)} из реальных env-переменных.
  */
 public final class CliRunner {
 
@@ -151,21 +147,8 @@ public final class CliRunner {
         return 60;
     }
 
-    /**
-     * Переменная окружения с фолбэком на .env (CLI выходит до Spring-контекста,
-     * поэтому DotenvEnvironmentPostProcessor тут не работает). Реальный env
-     * в приоритете; .env подставляет только отсутствующие значения.
-     */
+    /** Переменная окружения (CLI выходит до Spring-контекста, читаем напрямую). */
     static String env(String key) {
-        String value = System.getenv(key);
-        if (value != null) {
-            return value;
-        }
-        return DotenvHolder.VALUES.get(key);
-    }
-
-    /** Ленивая загрузка .env один раз на процесс. */
-    private static final class DotenvHolder {
-        private static final Map<String, String> VALUES = DotenvLoader.parse(DotenvLoader.DEFAULT_PATH);
+        return System.getenv(key);
     }
 }
