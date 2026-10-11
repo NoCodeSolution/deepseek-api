@@ -8,6 +8,14 @@
 режим «1 вопрос = 1 чат» с удалением чатов, reasoning-вывод для `deepseek-reasoner`,
 корректные OpenAI-ошибки, защищённые дефолты.
 
+## Java-версия
+
+Есть полный порт на **Java 21 / Spring Boot 3.5.16** в каталоге [`java/`](java/) —
+та же функциональность (сервер + CLI `--login`/`--connect`/`--import`/`--manual`,
+auth.json v1, совместимый с Python-версией), плюс режим маскирования секретов
+в исходящих prompt (`PRIVACY_MASK_SECRETS`). Сборка, конфигурация и Docker:
+см. [java/README.md](java/README.md).
+
 ## Как это работает
 
 Сервис сохраняет браузерную сессию DeepSeek (cookies + токен) и проксирует запросы

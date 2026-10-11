@@ -122,3 +122,65 @@ curl -s localhost:18778/health
 curl -s -X POST localhost:18778/v1/chat/completions -H "Content-Type: application/json" \
   -d '{"model":"deepseek-chat","messages":[{"role":"user","content":"hi"}]}'   # ожидание: 401 authentication_error без валидной сессии
 ```
+
+## 10. Java-версия (Spring Boot 3.5.16)
+
+**Статус: реализовано и проверено live (2026-10-11).** Полный порт Python-версии на
+Java 21 / Spring Boot 3.5.16 в каталоге `java/`. Тестовый сьют: **134 теста зелёные**
+(`cd java && mvn -U test`, 1 skipped — posix-права на Windows). Live-прогон против
+реального DeepSeek: non-stream (text/openai), stream SSE, reasoner (мысли отделены),
+UTF-8, удаление чатов, срабатывание PromptSanitizer — всё подтверждено.
+
+**ВАЖНО про upstream:** в октябре 2026 DeepSeek сменил формат SSE-стрима —
+контент фрагментов приходит дельтами `{"p":"response/fragments/-1/content",...}`
+и корневыми `{"v":"..."}`, тип фрагмента (THINK/RESPONSE) известен только из
+события создания фрагмента. Java-версия маршрутизирует дельты по типу последнего
+фрагмента и исправна; **Python-версия (sse.py) на новом формате кладёт мысли
+reasoner-модели в основной текст и теряет хвост ответа** — баг подтверждён
+live-прогоном, в Java исправлен (SseEventParser), Python оставлен как есть.
+
+Структура `java/`:
+
+```
+java/
+├── pom.xml                          # Spring Boot 3.5.16, playwright 1.63.0, chicory 1.7.5
+├── Dockerfile                       # multi-stage: maven-сборка → JRE 21 + chromium
+├── README.md                        # сборка, запуск, CLI, конфиг, endpoints, privacy, Docker
+└── src/main/java/com/nocodesolution/deepseek_free_api/
+    ├── DeepseekFreeApiApplication   # точка входа: CLI-режимы или Spring Boot
+    ├── cli/CliRunner                # --manual / --import / --login / --connect (без Spring-контекста)
+    ├── config/                      # AppProperties (@ConfigurationProperties), DotenvEnvironmentPostProcessor,
+    │                                #   WebConfig (CORS), RestTemplateConfig, ServiceConfig
+    ├── controllers/ApiController    # /v1/chat/completions (SSE + non-stream), /v1/models, /health,
+    │                                #   /v1/auth/status|refresh|login
+    ├── dto/                         # ChatCompletionRequest, ChatMessage
+    ├── browser/                     # BrowserAuthService (Playwright: окно, CDP-connect, headless по кредам)
+    ├── services/                    # AuthManager, AuthStorage, DeepSeekClient, CompletionService,
+    │                                #   MessageConverter, SseEventParser, PowSolver (Chicory AoT),
+    │                                #   PowWasmLoader, PromptSanitizer
+    └── support/ApiKeyFilter         # проверка PROXY_API_KEY
+```
+
+Ключевые отличия от Python-версии:
+
+- **RestTemplate вместо httpx** — HTTP-клиент синхронный; SSE-стрим читается
+  последовательно на виртуальных трейдах (`spring.threads.virtual.enabled=true`),
+  async-контроллеры не нужны.
+- **Chicory AoT вместо wasmtime** — PoW (sha3_wasm_bg.wasm) исполняется через
+  Chicory с AoT-компиляцией (`com.dylibso.chicory:compiler`, AotMachine);
+  интерпретатор Chicory ~в 200 раз медленнее, поэтому интерпретатор не вариант.
+- **Playwright sync API** (1.63.0, `com.microsoft.playwright`) вместо Python async API.
+- **PromptSanitizer — новая фича, в Python нет**: детерминированное (regex, без ML)
+  маскирование секретов в исходящем prompt до отправки в DeepSeek — PEM-ключи,
+  `password=/token=`-пары, Bearer, JWT, `sk-...`, AWS-ключи, длинные токены,
+  IPv4/IPv6, email, URL + кастомные шаблоны (`PRIVACY_MASK_PATTERNS`).
+  В лог — только метаданные замены, не значения. Отключение: `PRIVACY_MASK_SECRETS=false`.
+- **Конфигурация** — `application.properties` + Spring relaxed binding + `.env`
+  из текущей директории (DotenvEnvironmentPostProcessor, паритет Python
+  `_load_dotenv`: env имеет приоритет над `.env`). Имена env частично отличаются
+  от Python (`DELETE_CHAT` → `DEEPSEEK_DELETE_CHAT` и т.п., таблица — в java/README.md);
+  совпадают: `PROXY_API_KEY`, `CORS_ORIGIN`, `DS_EMAIL`, `DS_PASSWORD`,
+  `HEADLESS_LOGIN_TIMEOUT_S`, `DEEPSEEK_SHA3_WASM` + новые `PRIVACY_MASK_SECRETS`,
+  `PRIVACY_MASK_PATTERNS`.
+- **auth.json v1 и `~/.deepseek-free-api/` совместимы с Python-версией** — сессия
+  общая, можно получать сессию одной версией и работать другой.
