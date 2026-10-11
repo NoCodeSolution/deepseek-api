@@ -1,8 +1,10 @@
-node_modules/
+target/
+logs/
+*.class
 .browser-profile/
 auth.json
 *.log
-.kimi-code/local.toml
+.kimi-code/
 tmp-*/
 
 .env
