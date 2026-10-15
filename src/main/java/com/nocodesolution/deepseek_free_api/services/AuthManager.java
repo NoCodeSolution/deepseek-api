@@ -2,85 +2,55 @@ package com.nocodesolution.deepseek_free_api.services;
 
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuth;
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuthException;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.AuthRequiredException;
+import com.nocodesolution.deepseek_free_api.enums.AuthState;
+import com.nocodesolution.deepseek_free_api.support.SingleFlight;
 import java.io.IOException;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * AuthManager: состояние авторизации, тихий refresh, эскалация до интерактивного входа
- * Single-flight: ReentrantLock + generation-счётчик.
+ * AuthManager управляет жизненным циклом авторизации DeepSeek.
  */
 public class AuthManager {
-
     private static final Logger log = LoggerFactory.getLogger(AuthManager.class);
-
-    public enum AuthState {
-        LOADING("loading"),
-        READY("ready"),
-        REFRESHING("refreshing"),
-        EXPIRED("expired");
-
-        private final String value;
-
-        AuthState(String value) {
-            this.value = value;
-        }
-
-        public String value() {
-            return value;
-        }
-    }
 
     private final AuthStorage authStorage;
     private final BrowserAuth browser;
     private final boolean interactive;
-    private final Duration refreshInterval;
     private final String email;
     private final String password;
 
-    private final ReentrantLock lock = new ReentrantLock();
+    private final SingleFlight<Boolean> authFlight = new SingleFlight<>();
 
     private volatile AuthState state = AuthState.LOADING;
     private volatile String cookieHeader = "";
     private volatile String token = "";
     private volatile Instant savedAt;
     private volatile String lastError = "";
-    private volatile int generation = 0;
-
-    private ScheduledExecutorService timer;
 
     public AuthManager(
             AuthStorage authStorage,
             BrowserAuth browser,
             boolean interactive,
-            Duration refreshInterval,
             String email,
             String password) {
         this.authStorage = authStorage;
         this.browser = browser;
         this.interactive = interactive;
-        this.refreshInterval = refreshInterval;
         this.email = email;
         this.password = password;
     }
 
-    // ─── Состояние ────────────────────────────────────────────
-
-    public AuthState state() {
+    // test-purposes
+    protected AuthState state() {
         return state;
     }
 
+    /** Текущие креды авторизации, если токен не пустой. */
     public Optional<Credentials> credentials() {
         String t = token;
         if (t.isEmpty()) {
@@ -89,6 +59,7 @@ public class AuthManager {
         return Optional.of(new Credentials(cookieHeader, t));
     }
 
+    /** Статус авторизации для /health и /v1/auth/status. */
     public Map<String, Object> statusMap() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("state", state.value());
@@ -99,6 +70,7 @@ public class AuthManager {
         return map;
     }
 
+    /** Устанавливает креды и переводит состояние в READY. */
     private void apply(Credentials creds) {
         cookieHeader = creds.cookieHeader();
         token = creds.token();
@@ -107,6 +79,7 @@ public class AuthManager {
         lastError = "";
     }
 
+    /** Сбрасывает креды, переводит состояние в EXPIRED и сохраняет причину. */
     private void drop(String error) {
         token = "";
         cookieHeader = "";
@@ -118,195 +91,150 @@ public class AuthManager {
         return email != null && !email.isEmpty() && password != null && !password.isEmpty();
     }
 
-    // ─── Жизненный цикл ───────────────────────────────────────
-
+    /**
+     * Вызывается один раз при старте приложения. при старте приложения.
+     * Пытается загрузить сохранённую сессию, затем обновить её из браузерного профиля
+     * Порядок: saved auth → silent refresh → headless login → EXPIRED.
+     */
     public void startup() {
-        Credentials saved = null;
-        try {
-            saved = authStorage.readSavedAuth();
-        } catch (AuthStorageException | IOException exc) {
-            log.warn("auth.json не прочитан: {}", exc.getMessage());
-            drop(String.valueOf(exc.getMessage()));
-        }
-        if (saved != null) {
-            apply(saved);
+        Optional<Credentials> saved = loadSavedAuth();
+        if (saved.isPresent()) {
+            apply(saved.get());
             log.info("Загружена сохранённая авторизация");
-            if (silentRefresh()) {
-                log.info("Токен обновлён из профиля при старте");
-            }
+            trySilentRefresh().ifPresentOrElse(
+                    creds -> {
+                        apply(creds);
+                        log.info("Токен обновлён из профиля при старте");
+                    },
+                    () -> log.warn("Silent refresh при старте не удался"));
         } else {
-            // auth.json нет, но профиль браузера может быть жив — сначала silent
-            if (silentRefresh()) {
-                log.info("Авторизация восстановлена из профиля при старте");
-            } else if (credentialsLogin()) {
-                log.info("Авторизация получена headless-логином при старте");
+            Optional<Credentials> creds = trySilentRefresh().or(this::tryHeadlessLogin);
+            if (creds.isPresent()) {
+                apply(creds.get());
+                log.info("Авторизация восстановлена из профиля/headless при старте");
             } else {
                 String reason = "auth.json не найден";
                 if (hasCredentials()) {
-                    reason += "; headless-логин по кредам не удался (см. лог)";
+                    reason += "; headless-логин по кредам не удался";
                 }
                 drop(reason);
                 log.warn("Нет сохранённой авторизации. Выполни: deepseek-free-api --login");
             }
         }
-        long periodMs = refreshInterval.toMillis();
-        if (periodMs > 0) {
-            timer = Executors.newSingleThreadScheduledExecutor(runnable -> {
-                Thread t = new Thread(runnable, "auth-refresh");
-                t.setDaemon(true);
-                return t;
-            });
-            timer.scheduleWithFixedDelay(this::backgroundRefresh, periodMs, periodMs, TimeUnit.MILLISECONDS);
-        }
     }
 
-    public void shutdown() {
-        ScheduledExecutorService t = timer;
-        timer = null;
-        if (t != null) {
-            t.shutdownNow();
-        }
-    }
-
-    private void backgroundRefresh() {
-        try {
-            if (silentRefresh()) {
-                log.info("Фоновый refresh: токен обновлён");
-            }
-        } catch (Exception exc) {
-            // таймер не должен умирать от исключений
-            log.warn("Фоновый refresh не удался: {}", exc.getMessage());
-        }
-    }
-
-    // ─── Refresh ──────────────────────────────────────────────
-
-    private boolean silentRefresh() {
-        lock.lock();
-        try {
-            Credentials creds = browser.refreshFromProfile();
-            if (creds != null) {
-                apply(creds);
-                return true;
-            }
-            return false;
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private boolean credentialsLogin() {
-        if (!hasCredentials()) {
-            return false;
-        }
-        Credentials creds;
-        try {
-            creds = browser.headlessCredentialsLogin();
-        } catch (BrowserAuthException exc) {
-            // Сообщения BrowserAuthException — свои, безопасны для лога
-            log.warn("Headless-логин по кредам не удался: {}", exc.getMessage());
-            return false;
-        } catch (Exception exc) {
-            // Сырые исключения Playwright могут содержать креды/DOM — логируем только тип
-            log.warn("Headless-логин по кредам упал: {}", exc.getClass().getSimpleName());
-            return false;
-        }
-        apply(creds);
-        return true;
-    }
-
-    /**
-     * Single-flight refresh: silent → headless по кредам → интерактивное окно.
-     * Повторные вызовы подряд (пачка параллельных запросов с протухшим токеном)
-     * не запускают браузер заново: увидев чужое успешное обновление, возвращаем
-     * True сразу. Управляет поколением generation.
-     */
     public boolean refresh() {
         return refresh(true);
     }
 
+    /**
+     * Попытка обновить авторизацию.
+     *
+     * @param allowInteractive false — не открывать окно логина, даже если профиль мёртв
+     */
     public boolean refresh(boolean allowInteractive) {
-        int seenGeneration = generation;
-        lock.lock();
         try {
-            if (!token.isEmpty() && generation != seenGeneration) {
+            return authFlight.execute(() -> performRefresh(allowInteractive));
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** Принудительный интерактивный вход */
+    public boolean loginNow() {
+        try {
+            return authFlight.execute(() -> {
+                state = AuthState.REFRESHING;
+                apply(tryInteractiveLogin());
+                log.info("Авторизация восстановлена интерактивным входом");
+                return true;
+            });
+        } catch (BrowserAuthException e) {
+            drop(e.getMessage());
+            return false;
+        } catch (Exception e) {
+            log.error("loginNow упал", e);
+            drop(e.getMessage() != null ? e.getMessage() : e.toString());
+            return false;
+        }
+    }
+
+    /** Читает сохранённую авторизацию из auth.json. */
+    private Optional<Credentials> loadSavedAuth() {
+        try {
+            return Optional.ofNullable(authStorage.readSavedAuth());
+        } catch (AuthStorageException | IOException e) {
+            log.warn("auth.json не прочитан: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /** Тихое обновление из браузерного профиля; null/empty — профиль мёртв. */
+    private Optional<Credentials> trySilentRefresh() {
+        Credentials creds = browser.refreshFromProfile();
+        return creds != null ? Optional.of(creds) : Optional.empty();
+    }
+
+    /** Headless-логин по кредам, если они заданы. */
+    private Optional<Credentials> tryHeadlessLogin() {
+        if (!hasCredentials()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(browser.headlessCredentialsLogin());
+        } catch (BrowserAuthException e) {
+            // Сообщения BrowserAuthException — свои, безопасны для лога
+            log.warn("Headless-логин по кредам не удался: {}", e.getMessage());
+            return Optional.empty();
+        } catch (Exception e) {
+            // Сырые исключения Playwright могут содержать креды/DOM — логируем только тип
+            log.warn("Headless-логин по кредам упал: {}", e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    /** Интерактивный вход через окно браузера. Бросает {@link BrowserAuthException} при неудаче. */
+    private Credentials tryInteractiveLogin() throws BrowserAuthException {
+        if (!interactive) {
+            throw new BrowserAuthException("Интерактивный вход отключён");
+        }
+        log.warn("Открываю окно логина...");
+        return browser.loginAndSaveAuth();
+    }
+
+    /**
+     * Попытка обновления: silent → headless → interactive (optional).
+     */
+    private boolean performRefresh(boolean allowInteractive) {
+        state = AuthState.REFRESHING;
+        try {
+            Optional<Credentials> creds = trySilentRefresh()
+                    .or(this::tryHeadlessLogin);
+            if (creds.isPresent()) {
+                apply(creds.get());
+                log.info("Авторизация обновлена (silent/headless)");
                 return true;
             }
-            state = AuthState.REFRESHING;
-            try {
-                if (silentRefresh()) {
-                    generation++;
-                    log.info("Авторизация обновлена (silent refresh)");
-                    return true;
-                }
-                log.warn("Silent refresh не помог, сессия профиля мертва");
-                if (credentialsLogin()) {
-                    generation++;
-                    log.info("Авторизация восстановлена headless-логином по кредам");
-                    return true;
-                }
-                if (allowInteractive && interactive) {
-                    log.warn("Открываю окно логина...");
-                    Credentials creds;
-                    try {
-                        creds = browser.loginAndSaveAuth();
-                    } catch (BrowserAuthException exc) {
-                        drop(exc.getMessage());
-                        return false;
-                    }
-                    apply(creds);
-                    generation++;
+
+            if (allowInteractive) {
+                try {
+                    apply(tryInteractiveLogin());
                     log.info("Авторизация восстановлена интерактивным входом");
                     return true;
+                } catch (BrowserAuthException e) {
+                    drop(e.getMessage());
+                    throw new RuntimeException("refresh failed", e);
                 }
-                drop("silent refresh не удался, интерактивный вход отключён");
-                return false;
-            } catch (Exception exc) {
-                log.error("Refresh упал", exc);
-                drop(exc.getMessage() != null ? exc.getMessage() : exc.toString());
-                return false;
             }
-        } finally {
-            lock.unlock();
-        }
-    }
 
-    /** Принудительный интерактивный вход (эндпоинт /v1/auth/login). */
-    public boolean loginNow() {
-        lock.lock();
-        try {
-            state = AuthState.REFRESHING;
-            Credentials creds;
-            try {
-                creds = browser.loginAndSaveAuth();
-            } catch (BrowserAuthException exc) {
-                drop(exc.getMessage());
-                return false;
-            }
-            apply(creds);
-            generation++;
-            return true;
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    // ─── Retry-обёртка ────────────────────────────────────────
-
-    public <T> T callWithRefresh(Supplier<T> factory) {
-        return callWithRefresh(factory, true);
-    }
-
-    /** Выполняет factory(); при AuthRequiredException — refresh и один повтор. */
-    public <T> T callWithRefresh(Supplier<T> factory, boolean allowInteractive) {
-        try {
-            return factory.get();
-        } catch (AuthRequiredException exc) {
-            log.warn("Auth error от DeepSeek, пробуем refresh");
-            if (refresh(allowInteractive)) {
-                return factory.get();
-            }
-            throw exc;
+            drop("silent refresh не удался, интерактивный вход отключён");
+            throw new RuntimeException("refresh failed");
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Refresh упал", e);
+            drop(e.getMessage() != null ? e.getMessage() : e.toString());
+            throw new RuntimeException("refresh failed", e);
         }
     }
 }

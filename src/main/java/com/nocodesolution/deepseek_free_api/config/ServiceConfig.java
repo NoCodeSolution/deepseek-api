@@ -13,7 +13,6 @@ import com.nocodesolution.deepseek_free_api.services.DeepSeekClient;
 import com.nocodesolution.deepseek_free_api.services.PowSolver;
 import com.nocodesolution.deepseek_free_api.services.PromptSanitizer;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
@@ -42,13 +41,12 @@ public class ServiceConfig {
                 authStorage);
     }
 
-    @Bean(destroyMethod = "shutdown")
+    @Bean
     public AuthManager authManager(AuthStorage authStorage, BrowserAuth browserAuth, Auth auth) {
         return new AuthManager(
                 authStorage,
                 browserAuth,
                 auth.interactiveLogin(),
-                Duration.ofHours(auth.refreshIntervalH()),
                 auth.email(),
                 auth.password());
     }

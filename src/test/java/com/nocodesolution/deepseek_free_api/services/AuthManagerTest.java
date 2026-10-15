@@ -10,13 +10,11 @@ import static org.mockito.Mockito.when;
 
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuth;
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuthException;
-import com.nocodesolution.deepseek_free_api.services.AuthManager.AuthState;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.AuthRequiredException;
+import com.nocodesolution.deepseek_free_api.enums.AuthState;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -64,7 +62,7 @@ class AuthManagerTest {
     }
 
     private AuthManager manager(boolean interactive, String email, String password) {
-        return new AuthManager(storage, browser, interactive, Duration.ofHours(999), email, password);
+        return new AuthManager(storage, browser, interactive, email, password);
     }
 
     @Test
@@ -74,7 +72,6 @@ class AuthManagerTest {
         when(browser.headlessCredentialsLogin()).thenReturn(creds("headless-tok"));
         AuthManager m = manager(true, "a@b.c", "pw");
         m.startup();
-        m.shutdown();
         assertTrue(m.refresh());
         assertEquals(AuthState.READY, m.state());
         assertEquals(Optional.of("headless-tok"), m.credentials().map(Credentials::token));
@@ -88,7 +85,6 @@ class AuthManagerTest {
         when(browser.loginAndSaveAuth()).thenReturn(creds("login-tok"));
         AuthManager m = manager(true, "a@b.c", "pw");
         m.startup();
-        m.shutdown();
         assertTrue(m.refresh());
         assertEquals(Optional.of("login-tok"), m.credentials().map(Credentials::token));
     }
@@ -99,7 +95,6 @@ class AuthManagerTest {
         when(browser.refreshFromProfile()).thenReturn(null);
         AuthManager m = manager(false, "", "");
         m.startup();
-        m.shutdown();
         assertFalse(m.refresh(false));
         verify(browser, never()).headlessCredentialsLogin();
     }
@@ -110,7 +105,6 @@ class AuthManagerTest {
         when(browser.headlessCredentialsLogin()).thenReturn(creds("headless-tok"));
         AuthManager m = manager(false, "a@b.c", "pw");
         m.startup();
-        m.shutdown();
         assertEquals(AuthState.READY, m.state());
         assertEquals(Optional.of("headless-tok"), m.credentials().map(Credentials::token));
     }
@@ -120,7 +114,6 @@ class AuthManagerTest {
         when(browser.refreshFromProfile()).thenReturn(null);
         AuthManager m = manager(false, "", "");
         m.startup();
-        m.shutdown();
         assertEquals(AuthState.EXPIRED, m.state());
         assertTrue(m.credentials().isEmpty());
     }
@@ -131,7 +124,6 @@ class AuthManagerTest {
         when(browser.refreshFromProfile()).thenReturn(creds("fresh-tok"));
         AuthManager m = manager(false, "", "");
         m.startup();
-        m.shutdown();
         assertEquals(AuthState.READY, m.state());
         assertEquals(Optional.of("fresh-tok"), m.credentials().map(Credentials::token));
     }
@@ -146,7 +138,6 @@ class AuthManagerTest {
         });
         AuthManager m = manager(false, "", "");
         m.startup();
-        m.shutdown();
         assertTrue(m.refresh(false));
         assertEquals(2, calls.get()); // startup + refresh
     }
@@ -158,7 +149,6 @@ class AuthManagerTest {
         when(browser.loginAndSaveAuth()).thenReturn(creds("login-tok"));
         AuthManager m = manager(true, "", "");
         m.startup();
-        m.shutdown();
         assertTrue(m.refresh());
         assertEquals(AuthState.READY, m.state());
         assertEquals(Optional.of("login-tok"), m.credentials().map(Credentials::token));
@@ -170,7 +160,6 @@ class AuthManagerTest {
         when(browser.refreshFromProfile()).thenReturn(null);
         AuthManager m = manager(false, "", "");
         m.startup();
-        m.shutdown();
         assertFalse(m.refresh(false));
         assertEquals(AuthState.EXPIRED, m.state());
         assertTrue(m.credentials().isEmpty());
@@ -183,7 +172,6 @@ class AuthManagerTest {
         when(browser.loginAndSaveAuth()).thenThrow(new BrowserAuthException("пользователь закрыл окно"));
         AuthManager m = manager(true, "", "");
         m.startup();
-        m.shutdown();
         assertFalse(m.loginNow());
         assertEquals(AuthState.EXPIRED, m.state());
     }
@@ -199,7 +187,6 @@ class AuthManagerTest {
         });
         AuthManager m = manager(false, "", "");
         m.startup();
-        m.shutdown();
 
         ExecutorService pool = Executors.newFixedThreadPool(3);
         CountDownLatch ready = new CountDownLatch(3);
@@ -228,39 +215,4 @@ class AuthManagerTest {
         });
     }
 
-    @Test
-    void callWithRefreshRetriesWithNewCreds() throws Exception {
-        writeAuth();
-        when(browser.refreshFromProfile()).thenReturn(creds("fresh-tok"));
-        AuthManager m = manager(false, "", "");
-        m.startup();
-        m.shutdown();
-
-        AtomicInteger attempts = new AtomicInteger();
-        String result = m.callWithRefresh(() -> {
-            if (attempts.incrementAndGet() == 1) {
-                throw new AuthRequiredException("boom");
-            }
-            return "ok:" + m.credentials().orElseThrow().token();
-        });
-        assertEquals("ok:fresh-tok", result);
-        assertEquals(2, attempts.get());
-    }
-
-    @Test
-    void callWithRefreshGivesUp() throws Exception {
-        writeAuth();
-        when(browser.refreshFromProfile()).thenReturn(null);
-        AuthManager m = manager(false, "", "");
-        m.startup();
-        m.shutdown();
-
-        AtomicInteger attempts = new AtomicInteger();
-        AuthRequiredException thrown = assertThrows(AuthRequiredException.class, () -> m.callWithRefresh(() -> {
-            attempts.incrementAndGet();
-            throw new AuthRequiredException("boom");
-        }));
-        assertEquals("boom", thrown.getMessage());
-        assertEquals(1, attempts.get()); // refresh не удался — повтора factory нет
-    }
 }
