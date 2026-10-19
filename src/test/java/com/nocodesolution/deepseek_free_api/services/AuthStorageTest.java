@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nocodesolution.deepseek_free_api.auth.CookieHeaderBuilder;
+import com.nocodesolution.deepseek_free_api.auth.TokenNormalizer;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
@@ -49,31 +51,31 @@ class AuthStorageTest {
 
     @Test
     void normalizePlain() {
-        assertEquals("sk-abc", AuthStorage.normalizeToken("  sk-abc  "));
-        assertEquals("", AuthStorage.normalizeToken(""));
-        assertEquals("", AuthStorage.normalizeToken(null));
+        assertEquals("sk-abc", TokenNormalizer.normalizeToken("  sk-abc  "));
+        assertEquals("", TokenNormalizer.normalizeToken(""));
+        assertEquals("", TokenNormalizer.normalizeToken(null));
     }
 
     @Test
     void normalizeJsonString() {
-        assertEquals("quoted-token", AuthStorage.normalizeToken("\"quoted-token\""));
+        assertEquals("quoted-token", TokenNormalizer.normalizeToken("\"quoted-token\""));
     }
 
     @Test
     void normalizeJsonValueObject() {
-        assertEquals("inside", AuthStorage.normalizeToken("{\"value\": \"inside\", \"other\": 1}"));
+        assertEquals("inside", TokenNormalizer.normalizeToken("{\"value\": \"inside\", \"other\": 1}"));
     }
 
     @Test
     void normalizeInvalidJsonReturnsAsIs() {
-        assertEquals("not-json{", AuthStorage.normalizeToken("not-json{"));
+        assertEquals("not-json{", TokenNormalizer.normalizeToken("not-json{"));
     }
 
     // ─── cookie_header_from_array ───────────────────────────────
 
     @Test
     void cookieHeaderOk() {
-        String header = AuthStorage.cookieHeaderFromArray(
+        String header = CookieHeaderBuilder.cookieHeaderFromArray(
                 json("[{\"name\": \"ds_session_id\", \"value\": \"s1\"}, {\"name\": \"a\", \"value\": \"b\"}]"));
         assertEquals("ds_session_id=s1; a=b", header);
     }
@@ -81,13 +83,13 @@ class AuthStorageTest {
     @Test
     void cookieHeaderRequiresSessionCookie() {
         assertThrows(AuthStorageException.class,
-                () -> AuthStorage.cookieHeaderFromArray(json("[{\"name\": \"other\", \"value\": \"x\"}]")));
+                () -> CookieHeaderBuilder.cookieHeaderFromArray(json("[{\"name\": \"other\", \"value\": \"x\"}]")));
     }
 
     @Test
     void cookieHeaderRequiresArray() {
         assertThrows(AuthStorageException.class,
-                () -> AuthStorage.cookieHeaderFromArray(json("{\"name\": \"x\"}")));
+                () -> CookieHeaderBuilder.cookieHeaderFromArray(json("{\"name\": \"x\"}")));
     }
 
     // ─── round-trip ─────────────────────────────────────────────

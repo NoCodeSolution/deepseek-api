@@ -3,12 +3,15 @@ package com.nocodesolution.deepseek_free_api.services;
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuth;
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuthException;
 import com.nocodesolution.deepseek_free_api.enums.AuthState;
-import com.nocodesolution.deepseek_free_api.support.SingleFlight;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +27,8 @@ public class AuthManager {
     private final String email;
     private final String password;
 
-    private final SingleFlight<Boolean> authFlight = new SingleFlight<>();
+    private final AtomicReference<CompletableFuture<Boolean>> currentRefresh = new AtomicReference<>();
+    private final ReentrantLock loginLock = new ReentrantLock();
 
     private volatile AuthState state = AuthState.LOADING;
     private volatile String cookieHeader = "";
@@ -92,8 +96,7 @@ public class AuthManager {
     }
 
     /**
-     * Вызывается один раз при старте приложения. при старте приложения.
-     * Пытается загрузить сохранённую сессию, затем обновить её из браузерного профиля
+     * Вызывается один раз при старте приложения.
      * Порядок: saved auth → silent refresh → headless login → EXPIRED.
      */
     public void startup() {

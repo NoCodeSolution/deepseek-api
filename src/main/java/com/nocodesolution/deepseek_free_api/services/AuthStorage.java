@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.nocodesolution.deepseek_free_api.auth.CookieHeaderBuilder;
+import com.nocodesolution.deepseek_free_api.auth.TokenNormalizer;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -21,7 +23,6 @@ import java.util.List;
 public class AuthStorage {
 
     public static final int AUTH_FORMAT_VERSION = 1;
-    public static final String SESSION_COOKIE = "ds_session_id";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -45,100 +46,6 @@ public class AuthStorage {
         return authFile;
     }
 
-    // ─── normalize_token ────────────────────────────────────────
-
-    public static String normalizeToken(Object input) {
-        String token;
-        if (input == null) {
-            token = "";
-        } else if (input instanceof JsonNode node) {
-            // узел уже декодирован — берём значение как есть
-            if (node.isNull()) {
-                return "";
-            }
-            if (node.isTextual()) {
-                token = node.asText().strip();
-            } else if (node.isObject() && node.path("value").isTextual()) {
-                return node.path("value").asText().strip();
-            } else {
-                token = node.toString().strip();
-            }
-        } else {
-            token = String.valueOf(input).strip();
-        }
-        if (token.isEmpty()) {
-            return "";
-        }
-        final JsonNode parsed;
-        try {
-            parsed = MAPPER.readTree(token);
-        } catch (Exception e) {
-            return token;
-        }
-        if (parsed == null) {
-            return token;
-        }
-        if (parsed.isTextual()) {
-            return parsed.asText().strip();
-        }
-        if (parsed.isObject() && parsed.path("value").isTextual()) {
-            return parsed.path("value").asText().strip();
-        }
-        return token;
-    }
-
-    // ─── cookie_header_from_array ───────────────────────────────
-
-    public static String cookieHeaderFromArray(JsonNode parsed) {
-        if (parsed == null || !parsed.isArray()) {
-            throw new AuthStorageException("Cookie data must be a JSON array.");
-        }
-        List<JsonNode> usable = new ArrayList<>();
-        for (JsonNode c : parsed) {
-            if (isUsableCookie(c)) {
-                usable.add(c);
-            }
-        }
-        if (!containsSessionCookie(usable)) {
-            throw new AuthStorageException("Cookie file does not contain ds_session_id.");
-        }
-        StringBuilder header = new StringBuilder();
-        for (JsonNode c : usable) {
-            if (header.length() > 0) {
-                header.append("; ");
-            }
-            header.append(c.path("name").asText()).append('=').append(c.path("value").asText());
-        }
-        return header.toString();
-    }
-
-    private static boolean isUsableCookie(JsonNode c) {
-        if (c == null || !c.isObject()) {
-            return false;
-        }
-        JsonNode name = c.get("name");
-        if (name == null || name.isNull()) {
-            return false;
-        }
-        if ((name.isTextual() && name.asText().isEmpty())
-                || (name.isArray() && name.isEmpty())
-                || (name.isObject() && name.isEmpty())) {
-            return false;
-        }
-        return c.has("value");
-    }
-
-    private static boolean containsSessionCookie(List<JsonNode> cookies) {
-        for (JsonNode c : cookies) {
-            if (SESSION_COOKIE.equals(c.path("name").asText())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // ─── read/write ─────────────────────────────────────────────
-
     public Credentials readSavedAuth() throws IOException {
         if (!Files.exists(authFile)) {
             return null;
@@ -149,12 +56,12 @@ public class AuthStorage {
         }
         JsonNode userToken = parsed.get("userToken");
         JsonNode chosen = !falsy(userToken) ? userToken : parsed.get("token");
-        String token = normalizeToken(chosen);
+        String token = TokenNormalizer.normalizeToken(chosen);
         JsonNode cookies = parsed.get("cookies");
         if (cookies == null || cookies.isNull()) {
             cookies = MAPPER.createArrayNode();
         }
-        String cookieHeader = cookieHeaderFromArray(cookies);
+        String cookieHeader = CookieHeaderBuilder.cookieHeaderFromArray(cookies);
         return new Credentials(cookieHeader, token);
     }
 

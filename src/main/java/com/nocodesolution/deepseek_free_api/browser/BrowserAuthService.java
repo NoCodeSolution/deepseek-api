@@ -13,6 +13,8 @@ import com.microsoft.playwright.Response;
 import com.microsoft.playwright.options.Cookie;
 import com.microsoft.playwright.options.WaitForSelectorState;
 import com.microsoft.playwright.options.WaitUntilState;
+import com.nocodesolution.deepseek_free_api.auth.CookieHeaderBuilder;
+import com.nocodesolution.deepseek_free_api.auth.TokenNormalizer;
 import com.nocodesolution.deepseek_free_api.services.AuthStorage;
 import com.nocodesolution.deepseek_free_api.services.Credentials;
 import java.io.BufferedReader;
@@ -22,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -45,7 +48,7 @@ public class BrowserAuthService implements BrowserAuth {
     private static final List<String> LAUNCH_ARGS = List.of("--disable-blink-features=AutomationControlled");
     private static final int LOGIN_TIMEOUT_S = 300;
     private static final String API_PATH_MARKER = "/api/v0/";
-    private static final String SESSION_COOKIE = "ds_session_id";
+    private static final String SESSION_COOKIE = CookieHeaderBuilder.SESSION_COOKIE;
     private static final String LOCALSTORAGE_TOKEN_JS =
             "() => { try { return localStorage.getItem('userToken'); } catch { return null; } }";
 
@@ -113,7 +116,7 @@ public class BrowserAuthService implements BrowserAuth {
             try {
                 Page page = firstPage(context);
                 page.navigate(baseUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
-                AuthApiWait wait = new AuthApiWait(headlessLoginTimeoutS);
+                AuthApiWait wait = new AuthApiWait(Duration.ofMillis((long) (headlessLoginTimeoutS * 1000)));
                 context.onResponse(wait::onResponse);
                 try {
                     fillLoginForm(page);
@@ -137,9 +140,9 @@ public class BrowserAuthService implements BrowserAuth {
                 Page page = firstPage(context);
                 page.navigate(baseUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
                 System.out.println(
-                        "\n🔓 Откроется окно DeepSeek. Залогинься там любым способом.\n"
-                                + "   Окно закроется автоматически после успешного входа.\n");
-                AuthApiWait wait = new AuthApiWait(LOGIN_TIMEOUT_S);
+                        "\nОткроется окно DeepSeek. Выполните вход любым способом.\n"
+                                + "   Окно закроется после успешного входа.\n");
+                AuthApiWait wait = new AuthApiWait(Duration.ofSeconds(LOGIN_TIMEOUT_S));
                 context.onResponse(wait::onResponse);
                 wait.await();
                 return saveSession(context.cookies(List.of(baseUrl)), readToken(page), true);
@@ -164,7 +167,7 @@ public class BrowserAuthService implements BrowserAuth {
     @Override
     public Credentials connectToRunningChrome(int cdpPort) throws BrowserAuthException {
         String cdpUrl = "http://127.0.0.1:" + cdpPort;
-        System.out.println("\n🔗 Подключаюсь к Chrome на " + cdpUrl + "...");
+        System.out.println("\nПодключение к Chrome на " + cdpUrl + "...");
         try (Playwright playwright = Playwright.create()) {
             Browser browser;
             try {
@@ -172,8 +175,8 @@ public class BrowserAuthService implements BrowserAuth {
             } catch (Exception exc) {
                 throw new BrowserAuthException(
                         "Не удалось подключиться к Chrome.\n"
-                                + "1. Закрой весь Chrome\n"
-                                + "2. Запусти его заново этой командой в терминале:\n"
+                                + "1. Закройте весь Chrome\n"
+                                + "2. Запустите его заново этой командой в терминале:\n"
                                 + "   chrome --remote-debugging-port=" + cdpPort + "\n"
                                 + "   (Windows: \"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" "
                                 + "--remote-debugging-port=" + cdpPort + ")\n",
@@ -203,8 +206,8 @@ public class BrowserAuthService implements BrowserAuth {
                 List<Cookie> cookies = context.cookies(List.of(baseUrl));
                 if (token.isEmpty()) {
                     System.out.println(
-                            "ℹ️ Ты не залогинен в DeepSeek. Открываю страницу — зайди в аккаунт.\n"
-                                    + "   После входа нажми Enter в этом терминале.");
+                            "Вы не выполнили вход в DeepSeek. Открывается страница для входа.\n"
+                                    + "   После входа нажмите Enter в этом терминале.");
                     page.navigate(baseUrl + "/");
                     try {
                         new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).readLine();
@@ -245,7 +248,7 @@ public class BrowserAuthService implements BrowserAuth {
         } catch (BrowserAuthException error) {
             if (!error.getMessage().contains("SingletonLock")) {
                 throw new BrowserAuthException(
-                        "Не удалось открыть браузер. Установи Google Chrome или выполни "
+                        "Не удалось открыть браузер. Установите Google Chrome или выполните "
                                 + "\"playwright install chromium\". " + error.getMessage(),
                         error);
             }
@@ -298,7 +301,7 @@ public class BrowserAuthService implements BrowserAuth {
 
     private String readToken(Page page) {
         Object raw = page.evaluate(LOCALSTORAGE_TOKEN_JS);
-        return AuthStorage.normalizeToken(raw == null ? "" : String.valueOf(raw));
+        return TokenNormalizer.normalizeToken(raw == null ? "" : String.valueOf(raw));
     }
 
     private static boolean hasSessionCookie(List<Cookie> cookies) {
@@ -323,7 +326,7 @@ public class BrowserAuthService implements BrowserAuth {
         } catch (IOException exc) {
             throw new BrowserAuthException("Не удалось сохранить auth.json: " + exc.getMessage(), exc);
         }
-        return new Credentials(AuthStorage.cookieHeaderFromArray(AuthStorage.toArray(cookieJson)), token);
+        return new Credentials(CookieHeaderBuilder.cookieHeaderFromArray(AuthStorage.toArray(cookieJson)), token);
     }
 
     private static void validateSession(List<JsonNode> cookies, String token) throws BrowserAuthException {
@@ -365,11 +368,11 @@ public class BrowserAuthService implements BrowserAuth {
 
     private static final class AuthApiWait {
         private final CompletableFuture<Void> done = new CompletableFuture<>();
-        private final Object timeoutS; // Integer — интерактив (300), Double — headless (60.0)
+        private final Duration timeout;
         private final long startedNanos = System.nanoTime();
 
-        AuthApiWait(Object timeoutS) {
-            this.timeoutS = timeoutS;
+        AuthApiWait(Duration timeout) {
+            this.timeout = timeout;
         }
 
         void onResponse(Response response) {
@@ -405,13 +408,13 @@ public class BrowserAuthService implements BrowserAuth {
         }
 
         void await() throws BrowserAuthException {
-            long timeoutMs = (long) (((Number) timeoutS).doubleValue() * 1000);
+            long timeoutMs = timeout.toMillis();
             long remainingMs = timeoutMs - (System.nanoTime() - startedNanos) / 1_000_000;
             try {
                 done.get(Math.max(1, remainingMs), TimeUnit.MILLISECONDS);
             } catch (TimeoutException exc) {
                 throw new BrowserAuthException(
-                        "Таймаут входа " + timeoutS + "с. Залогинься в окне DeepSeek.");
+                        "Таймаут входа " + timeout.toSeconds() + " с. Выполните вход в окне DeepSeek.");
             } catch (InterruptedException exc) {
                 Thread.currentThread().interrupt();
                 throw new BrowserAuthException("Ожидание входа прервано");
