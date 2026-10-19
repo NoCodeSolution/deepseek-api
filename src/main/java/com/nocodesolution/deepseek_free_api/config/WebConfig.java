@@ -1,8 +1,8 @@
 package com.nocodesolution.deepseek_free_api.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nocodesolution.deepseek_free_api.config.AppProperties.Cors;
-import com.nocodesolution.deepseek_free_api.config.AppProperties.Proxy;
+import com.nocodesolution.deepseek_free_api.config.Cors;
+import com.nocodesolution.deepseek_free_api.config.Proxy;
 import com.nocodesolution.deepseek_free_api.support.ApiKeyFilter;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;

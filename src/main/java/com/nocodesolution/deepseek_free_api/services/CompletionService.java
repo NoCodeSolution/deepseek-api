@@ -1,12 +1,11 @@
 package com.nocodesolution.deepseek_free_api.services;
 
-import com.nocodesolution.deepseek_free_api.config.AppProperties.Deepseek;
+import com.nocodesolution.deepseek_free_api.config.Deepseek;
 import com.nocodesolution.deepseek_free_api.dto.ChatCompletionRequest;
 import com.nocodesolution.deepseek_free_api.services.DeepSeekException.AuthRequiredException;
 import com.nocodesolution.deepseek_free_api.services.DeepSeekException.RateLimitException;
 import com.nocodesolution.deepseek_free_api.services.DeepSeekException.UpstreamException;
 import com.nocodesolution.deepseek_free_api.services.SseEventParser.StreamResult;
-import java.util.Locale;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,6 +40,7 @@ public class CompletionService {
     private final AuthManager authManager;
     private final PromptSanitizer promptSanitizer;
     private final Deepseek deepseek;
+    private final ModelResolver modelResolver;
     private final Supplier<DeepSeekClient> clientFactory;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
@@ -48,10 +48,12 @@ public class CompletionService {
             AuthManager authManager,
             PromptSanitizer promptSanitizer,
             Deepseek deepseek,
+            ModelResolver modelResolver,
             Supplier<DeepSeekClient> clientFactory) {
         this.authManager = authManager;
         this.promptSanitizer = promptSanitizer;
         this.deepseek = deepseek;
+        this.modelResolver = modelResolver;
         this.clientFactory = clientFactory;
     }
 
@@ -72,28 +74,6 @@ public class CompletionService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-    }
-
-    /** Нормализация модели запроса: неизвестная → defaultModel (без thinking). */
-    public String resolveModel(String model) {
-        String requested = model == null ? "" : model.strip();
-        if (requested.isEmpty()) {
-            return deepseek.defaultModel();
-        }
-        String lowered = requested.toLowerCase(Locale.ROOT);
-        if (lowered.equals(deepseek.defaultModel().toLowerCase(Locale.ROOT)) || lowered.contains("deepseek")) {
-            return requested;
-        }
-        log.warn("Неизвестная модель '{}', заменяю на дефолтную '{}'", requested, deepseek.defaultModel());
-        return deepseek.defaultModel();
-    }
-
-    static String resolveModelType(String model) {
-        String lowered = model.toLowerCase(Locale.ROOT);
-        if (lowered.contains("reasoner") || lowered.contains("r1")) {
-            return "deepseek-reasoner";
-        }
-        return null;
     }
 
     private void runCompletion(ChatCompletionRequest req, BlockingQueue<CompletionEvent> queue) {
@@ -134,8 +114,8 @@ public class CompletionService {
         try {
             sessionId = client.createSession();
             String prompt = promptSanitizer.sanitize(MessageConverter.messagesToPrompt(req.messages()));
-            String model = resolveModel(req.model());
-            String modelType = resolveModelType(model);
+            String model = modelResolver.resolveModel(req.model());
+            String modelType = ModelResolver.resolveModelType(model);
             StreamResult result = client.complete(
                     sessionId,
                     prompt,

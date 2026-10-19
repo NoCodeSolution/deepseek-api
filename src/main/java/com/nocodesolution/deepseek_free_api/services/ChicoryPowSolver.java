@@ -1,6 +1,7 @@
 package com.nocodesolution.deepseek_free_api.services;
 
-import com.nocodesolution.deepseek_free_api.config.AppProperties;
+import com.nocodesolution.deepseek_free_api.config.Auth;
+import com.nocodesolution.deepseek_free_api.config.Deepseek;
 import java.nio.file.Path;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,12 +19,12 @@ public final class ChicoryPowSolver implements PowSolver {
 
     private static final String WASM_CACHE_FILE = "sha3_wasm_bg.wasm";
 
-    private final AppProperties.Deepseek deepseek;
-    private final AppProperties.Auth auth;
+    private final Deepseek deepseek;
+    private final Auth auth;
     private volatile DeepSeekHashGlue glue;
 
     @Autowired
-    public ChicoryPowSolver(AppProperties.Deepseek deepseek, AppProperties.Auth auth) {
+    public ChicoryPowSolver(Deepseek deepseek, Auth auth) {
         this.deepseek = deepseek;
         this.auth = auth;
     }

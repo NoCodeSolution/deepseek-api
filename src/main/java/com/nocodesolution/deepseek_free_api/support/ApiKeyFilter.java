@@ -2,7 +2,7 @@ package com.nocodesolution.deepseek_free_api.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.nocodesolution.deepseek_free_api.config.AppProperties.Proxy;
+import com.nocodesolution.deepseek_free_api.config.Proxy;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

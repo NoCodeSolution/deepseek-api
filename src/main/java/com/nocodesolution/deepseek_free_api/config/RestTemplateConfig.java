@@ -1,6 +1,6 @@
 package com.nocodesolution.deepseek_free_api.config;
 
-import com.nocodesolution.deepseek_free_api.config.AppProperties.Deepseek;
+import com.nocodesolution.deepseek_free_api.config.Deepseek;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import org.springframework.context.annotation.Bean;

@@ -2,14 +2,15 @@ package com.nocodesolution.deepseek_free_api.config;
 
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuth;
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuthService;
-import com.nocodesolution.deepseek_free_api.config.AppProperties.Auth;
-import com.nocodesolution.deepseek_free_api.config.AppProperties.Deepseek;
-import com.nocodesolution.deepseek_free_api.config.AppProperties.Privacy;
+import com.nocodesolution.deepseek_free_api.config.Auth;
+import com.nocodesolution.deepseek_free_api.config.Deepseek;
+import com.nocodesolution.deepseek_free_api.config.Privacy;
 import com.nocodesolution.deepseek_free_api.services.AuthManager;
 import com.nocodesolution.deepseek_free_api.services.AuthStorage;
 import com.nocodesolution.deepseek_free_api.services.CompletionService;
 import com.nocodesolution.deepseek_free_api.services.Credentials;
 import com.nocodesolution.deepseek_free_api.services.DeepSeekClient;
+import com.nocodesolution.deepseek_free_api.services.ModelResolver;
 import com.nocodesolution.deepseek_free_api.services.PowSolver;
 import com.nocodesolution.deepseek_free_api.services.PromptSanitizer;
 import java.nio.file.Path;
@@ -58,6 +59,11 @@ public class ServiceConfig {
     }
 
     @Bean
+    public ModelResolver modelResolver(Deepseek deepseek) {
+        return new ModelResolver(deepseek);
+    }
+
+    @Bean
     public PromptSanitizer promptSanitizer(Privacy privacy) {
         List<String> patterns = privacy.maskPatterns() == null
                 ? List.of()
@@ -92,7 +98,8 @@ public class ServiceConfig {
             AuthManager authManager,
             PromptSanitizer promptSanitizer,
             Deepseek deepseek,
+            ModelResolver modelResolver,
             Supplier<DeepSeekClient> deepSeekClientFactory) {
-        return new CompletionService(authManager, promptSanitizer, deepseek, deepSeekClientFactory);
+        return new CompletionService(authManager, promptSanitizer, deepseek, modelResolver, deepSeekClientFactory);
     }
 }

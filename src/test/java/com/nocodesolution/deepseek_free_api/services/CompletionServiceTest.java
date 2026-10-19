@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.nocodesolution.deepseek_free_api.FakeDeepSeekClient;
-import com.nocodesolution.deepseek_free_api.config.AppProperties;
+import com.nocodesolution.deepseek_free_api.config.Deepseek;
 import com.nocodesolution.deepseek_free_api.dto.ChatCompletionRequest;
 import com.nocodesolution.deepseek_free_api.dto.ChatMessage;
 import com.nocodesolution.deepseek_free_api.services.CompletionService.CompletionHandle;
@@ -34,12 +34,12 @@ import org.junit.jupiter.api.Test;
  */
 class CompletionServiceTest {
 
-    private static AppProperties.Deepseek props() {
+    private static Deepseek props() {
         return props(0);
     }
 
-    private static AppProperties.Deepseek props(int retryBackoffS) {
-        return new AppProperties.Deepseek(
+    private static Deepseek props(int retryBackoffS) {
+        return new Deepseek(
                 "https://chat.deepseek.com", "2.0.0", "/completion", "/delete",
                 true, "deepseek-chat", "text", retryBackoffS, false, 30000, 0, "");
     }
@@ -50,7 +50,8 @@ class CompletionServiceTest {
     }
 
     private static CompletionService service(AuthManager authManager, Queue<DeepSeekClient> clients) {
-        return new CompletionService(authManager, new PromptSanitizer(false, List.of()), props(), clients::poll);
+        return new CompletionService(authManager, new PromptSanitizer(false, List.of()), props(),
+                new ModelResolver(props()), clients::poll);
     }
 
     private static CompletionEvent awaitEvent(CompletionHandle handle) throws InterruptedException {
@@ -122,7 +123,7 @@ class CompletionServiceTest {
             }
         };
         CompletionService service = new CompletionService(
-                authManager, new PromptSanitizer(false, List.of()), props(),
+                authManager, new PromptSanitizer(false, List.of()), props(), new ModelResolver(props()),
                 () -> {
                     factoryCalls.incrementAndGet();
                     return flaky;
@@ -155,7 +156,7 @@ class CompletionServiceTest {
             }
         };
         CompletionService service = new CompletionService(
-                authManager, new PromptSanitizer(false, List.of()), props(60), () -> failing);
+                authManager, new PromptSanitizer(false, List.of()), props(60), new ModelResolver(props(60)), () -> failing);
 
         CompletionHandle handle = service.startCompletion(req());
         assertTrue(sessionAttempted.await(10, TimeUnit.SECONDS));
@@ -173,7 +174,7 @@ class CompletionServiceTest {
         FakeDeepSeekClient ok = new FakeDeepSeekClient();
         Queue<DeepSeekClient> clients = new ArrayDeque<>(List.of(ok));
         CompletionService service = new CompletionService(
-                authManager, new PromptSanitizer(true, List.of()), props(), clients::poll);
+                authManager, new PromptSanitizer(true, List.of()), props(), new ModelResolver(props()), clients::poll);
         ChatCompletionRequest req = new ChatCompletionRequest(
                 "deepseek-chat",
                 List.of(new ChatMessage("user", new TextNode("пиши на test@example.com"))),

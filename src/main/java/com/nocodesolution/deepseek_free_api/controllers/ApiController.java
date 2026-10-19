@@ -2,12 +2,13 @@ package com.nocodesolution.deepseek_free_api.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.nocodesolution.deepseek_free_api.config.AppProperties.Deepseek;
+import com.nocodesolution.deepseek_free_api.config.Deepseek;
 import com.nocodesolution.deepseek_free_api.dto.ChatCompletionRequest;
 import com.nocodesolution.deepseek_free_api.services.AuthManager;
 import com.nocodesolution.deepseek_free_api.services.CompletionEvent;
 import com.nocodesolution.deepseek_free_api.services.CompletionService;
 import com.nocodesolution.deepseek_free_api.services.CompletionService.CompletionHandle;
+import com.nocodesolution.deepseek_free_api.services.ModelResolver;
 import com.nocodesolution.deepseek_free_api.services.DeepSeekException;
 import com.nocodesolution.deepseek_free_api.services.DeepSeekException.AuthRequiredException;
 import com.nocodesolution.deepseek_free_api.services.DeepSeekException.RateLimitException;
@@ -44,16 +45,19 @@ public class ApiController {
     private final AuthManager authManager;
     private final CompletionService completionService;
     private final Deepseek deepseek;
+    private final ModelResolver modelResolver;
     private final ObjectMapper objectMapper;
 
     public ApiController(
             AuthManager authManager,
             CompletionService completionService,
             Deepseek deepseek,
+            ModelResolver modelResolver,
             ObjectMapper objectMapper) {
         this.authManager = authManager;
         this.completionService = completionService;
         this.deepseek = deepseek;
+        this.modelResolver = modelResolver;
         this.objectMapper = objectMapper;
     }
 
@@ -130,7 +134,7 @@ public class ApiController {
         CompletionHandle handle = completionService.startCompletion(req);
         String chunkId = MessageConverter.completionId();
         long created = MessageConverter.nowUnix();
-        String model = completionService.resolveModel(req.model());
+        String model = modelResolver.resolveModel(req.model());
         response.setStatus(200);
         response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
@@ -204,7 +208,7 @@ public class ApiController {
                         return ResponseEntity.ok(MessageConverter.openaiFull(
                                 MessageConverter.completionId(),
                                 MessageConverter.nowUnix(),
-                                completionService.resolveModel(req.model()),
+                                modelResolver.resolveModel(req.model()),
                                 done.text(),
                                 usage(done),
                                 done.reasoning()));

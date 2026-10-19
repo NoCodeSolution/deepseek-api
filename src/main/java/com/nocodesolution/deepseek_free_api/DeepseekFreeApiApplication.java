@@ -1,7 +1,11 @@
 package com.nocodesolution.deepseek_free_api;
 
 import com.nocodesolution.deepseek_free_api.cli.CliRunner;
-import com.nocodesolution.deepseek_free_api.config.AppProperties;
+import com.nocodesolution.deepseek_free_api.config.Auth;
+import com.nocodesolution.deepseek_free_api.config.Cors;
+import com.nocodesolution.deepseek_free_api.config.Deepseek;
+import com.nocodesolution.deepseek_free_api.config.Privacy;
+import com.nocodesolution.deepseek_free_api.config.Proxy;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -10,11 +14,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 @EnableConfigurationProperties({
-        AppProperties.Proxy.class,
-        AppProperties.Cors.class,
-        AppProperties.Deepseek.class,
-        AppProperties.Auth.class,
-        AppProperties.Privacy.class
+        Proxy.class,
+        Cors.class,
+        Deepseek.class,
+        Auth.class,
+        Privacy.class
 })
 public class DeepseekFreeApiApplication {
 
