@@ -113,21 +113,21 @@ public class AuthStorage {
                 throw new AuthStorageException("Файл cookies должен быть массивом JSON-объектов.");
             }
         }
-        String token = normalizeToken(userToken);
+        String token = TokenNormalizer.normalizeToken(userToken);
         if (token.isEmpty()) {
             throw new AuthStorageException("Токен не может быть пустым.");
         }
         List<JsonNode> usable = new ArrayList<>();
         for (JsonNode c : cookies) {
-            if (isUsableCookie(c)) {
+            if (CookieHeaderBuilder.isUsableCookie(c)) {
                 usable.add(c);
             }
         }
-        if (!containsSessionCookie(usable)) {
+        if (!CookieHeaderBuilder.containsSessionCookie(usable)) {
             throw new AuthStorageException(
-                    "В файле cookies нет ds_session_id. Убедись, что экспортировал куки с chat.deepseek.com");
+                    "В файле cookies нет ds_session_id. Убедитесь, что экспортированы куки с chat.deepseek.com");
         }
-        String cookieHeader = cookieHeaderFromArray(toArray(usable));
+        String cookieHeader = CookieHeaderBuilder.cookieHeaderFromArray(toArray(usable));
         writeSavedAuth(usable, token);
         return new Credentials(cookieHeader, token);
     }
@@ -141,19 +141,19 @@ public class AuthStorage {
     public static void printManualInstructions() {
         System.out.println("""
                 
-                ══════════════════════════════════════════════════
+                ==================================================
                   Ручной экспорт сессии DeepSeek
-                ══════════════════════════════════════════════════
+                ==================================================
                 
-                  1. Открой Chrome и зайди на https://chat.deepseek.com
-                  2. Убедись что ты залогинен (должен быть интерфейс чата)
-                  3. Открой DevTools (F12 или Ctrl+Shift+I)
-                  4. Перейди на вкладку Application → Local Storage
+                  1. Откройте Chrome и перейдите на https://chat.deepseek.com
+                  2. Убедитесь, что выполнен вход (должен быть интерфейс чата)
+                  3. Откройте DevTools (F12 или Ctrl+Shift+I)
+                  4. Перейдите на вкладку Application → Local Storage
                      → https://chat.deepseek.com
-                  5. Найди ключ "userToken" и скопируй его значение целиком
-                  6. Перейди на вкладку Application → Cookies
+                  5. Найдите ключ "userToken" и скопируйте его значение целиком
+                  6. Перейдите на вкладку Application → Cookies
                      → https://chat.deepseek.com
-                  7. Экспортируй все куки в файл (или скопируй вручную)
+                  7. Экспортируйте все куки в файл (или скопируйте вручную)
                 
                   Формат cookies JSON:
                   [
@@ -161,9 +161,9 @@ public class AuthStorage {
                     {"name": "...", "value": "...", ...}
                   ]
                 
-                  Сохрани файл и выполни:
+                  Сохраните файл и выполните:
                     deepseek-free-api --import cookies.json "<userToken>"
-                ══════════════════════════════════════════════════
+                ==================================================
                 """);
     }
 

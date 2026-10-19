@@ -254,7 +254,7 @@ public class ApiController {
             return MessageConverter.errorBody(
                     "authentication_error",
                     "Сессия DeepSeek истекла: " + exc.getMessage()
-                            + ". Выполни: java -jar deepseek-free-api.jar --login");
+                            + ". Выполните: java -jar deepseek-free-api.jar --login");
         }
         if (exc instanceof RateLimitException) {
             return MessageConverter.errorBody("rate_limit_error", String.valueOf(exc.getMessage()));

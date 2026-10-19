@@ -2,153 +2,152 @@ package com.nocodesolution.deepseek_free_api.cli;
 
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuth;
 import com.nocodesolution.deepseek_free_api.browser.BrowserAuthException;
-import com.nocodesolution.deepseek_free_api.browser.BrowserAuthService;
 import com.nocodesolution.deepseek_free_api.services.AuthStorage;
 import com.nocodesolution.deepseek_free_api.services.AuthStorageException;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.util.List;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 /**
  * CLI-режимы: --manual, --import, --login, --connect.
  * Объекты собираются вручную, без Spring-контекста; режимы не стартуют Tomcat.
- * Окружение читается через {@link #env(String)} из реальных env-переменных.
  */
 public final class CliRunner {
+
+    private static final Options OPTIONS = new Options()
+            .addOption("h", "help", false, "Вывести справку")
+            .addOption("m", "manual", false, "Инструкция по ручному экспорту сессии")
+            .addOption("l", "login", false, "Выполнить вход (headless или интерактивный)")
+            .addOption(Option.builder("i")
+                    .longOpt("import")
+                    .hasArgs()
+                    .numberOfArgs(2)
+                    .argName("cookies.json> <userToken")
+                    .desc("Импортировать cookies и токен")
+                    .build())
+            .addOption(Option.builder("c")
+                    .longOpt("connect")
+                    .hasArg()
+                    .argName("port")
+                    .optionalArg(true)
+                    .desc("Подключиться к запущенному Chrome по CDP-порту (по умолчанию 9222)")
+                    .build());
 
     private CliRunner() {
     }
 
     public static boolean isCliRequest(String[] args) {
-        for (String arg : args) {
-            if (arg.equals("--manual") || arg.equals("--login")
-                    || arg.equals("--import") || arg.equals("--connect")) {
-                return true;
-            }
+        try {
+            CommandLine line = new DefaultParser().parse(OPTIONS, args, true);
+            return line.hasOption("help")
+                    || line.hasOption("manual")
+                    || line.hasOption("import")
+                    || line.hasOption("login")
+                    || line.hasOption("connect");
+        } catch (ParseException e) {
+            return false;
         }
-        return false;
     }
 
     /** Выполняет CLI-режим и возвращает exit-код. */
     public static int run(String[] args) {
-        List<String> list = List.of(args);
-        if (list.contains("--manual")) {
+        CommandLine line;
+        try {
+            line = new DefaultParser().parse(OPTIONS, args);
+        } catch (ParseException e) {
+            System.err.println("Ошибка разбора аргументов: " + e.getMessage());
+            printHelp();
+            return 1;
+        }
+
+        if (line.hasOption("help")) {
+            printHelp();
+            return 0;
+        }
+        if (line.hasOption("manual")) {
             AuthStorage.printManualInstructions();
             return 0;
         }
-        int importIdx = list.indexOf("--import");
-        if (importIdx >= 0) {
-            if (importIdx + 2 >= list.size()) {
-                System.err.println("❌ --import требует 2 аргумента: <cookies.json> \"<userToken>\"");
+        if (line.hasOption("import")) {
+            String[] values = line.getOptionValues("import");
+            if (values == null || values.length < 2) {
+                System.err.println("--import требует 2 аргумента: <cookies.json> \"<userToken>\"");
                 return 1;
             }
-            return runImport(list.get(importIdx + 1), list.get(importIdx + 2));
+            return runImport(values[0], values[1]);
         }
-        if (list.contains("--login")) {
+        if (line.hasOption("login")) {
             return runLogin();
         }
-        int connectIdx = list.indexOf("--connect");
-        if (connectIdx >= 0) {
-            int port = 9222;
-            if (connectIdx + 1 < list.size()) {
-                try {
-                    port = Integer.parseInt(list.get(connectIdx + 1));
-                } catch (NumberFormatException exc) {
-                    System.err.println("❌ Невалидный порт для --connect: " + list.get(connectIdx + 1));
-                    return 1;
-                }
+        if (line.hasOption("connect")) {
+            String portValue = line.getOptionValue("connect", "9222");
+            int port;
+            try {
+                port = Integer.parseInt(portValue);
+            } catch (NumberFormatException e) {
+                System.err.println("Невалидный порт для --connect: " + portValue);
+                return 1;
             }
             return runConnect(port);
         }
+        printHelp();
         return 0;
     }
 
     private static int runImport(String cookiesFile, String userToken) {
         try {
-            defaultStorage().importCookies(cookiesFile, userToken);
+            CliAuthFactory.defaultStorage().importCookies(cookiesFile, userToken);
         } catch (AuthStorageException | IOException exc) {
-            System.err.println("❌ " + exc.getMessage());
+            System.err.println("Ошибка: " + exc.getMessage());
             return 1;
         }
-        System.out.println("✅ Cookies и токен импортированы!\n");
-        System.out.println("Запускай: deepseek-free-api");
+        System.out.println("Cookies и токен импортированы.");
+        System.out.println("Запускайте: deepseek-free-api");
         return 0;
     }
 
     private static int runLogin() {
-        BrowserAuth browser = defaultBrowser();
-        String email = env("DS_EMAIL");
-        String password = env("DS_PASSWORD");
+        BrowserAuth browser = CliAuthFactory.defaultBrowser();
+        String email = CliAuthFactory.env("DS_EMAIL");
+        String password = CliAuthFactory.env("DS_PASSWORD");
         try {
             if (email != null && !email.isEmpty() && password != null && !password.isEmpty()) {
                 try {
                     browser.headlessCredentialsLogin();
-                    System.out.println("✅ Авторизация DeepSeek сохранена!\n");
+                    System.out.println("Авторизация DeepSeek сохранена.");
                     return 0;
                 } catch (BrowserAuthException exc) {
-                    System.out.println("⚠️ Headless-логин не удался (" + exc.getMessage() + "), открываю окно...");
+                    System.out.println("Headless-логин не удался (" + exc.getMessage() + "), открываю окно...");
                 } catch (Exception exc) {
                     // сырые исключения логируем по типу — не светим креды в stderr
-                    System.out.println("⚠️ Headless-логин упал (" + exc.getClass().getSimpleName() + "), открываю окно...");
+                    System.out.println("Headless-логин упал (" + exc.getClass().getSimpleName() + "), открываю окно...");
                 }
             }
             browser.loginAndSaveAuth();
-            System.out.println("✅ Авторизация DeepSeek сохранена!\n");
+            System.out.println("Авторизация DeepSeek сохранена.");
             return 0;
         } catch (Exception exc) {
-            System.err.println("❌ " + exc.getMessage());
+            System.err.println("Ошибка: " + exc.getMessage());
             return 1;
         }
     }
 
     private static int runConnect(int cdpPort) {
         try {
-            defaultBrowser().connectToRunningChrome(cdpPort);
+            CliAuthFactory.defaultBrowser().connectToRunningChrome(cdpPort);
         } catch (Exception exc) {
-            System.err.println("❌ " + exc.getMessage());
+            System.err.println("Ошибка: " + exc.getMessage());
             return 1;
         }
-        System.out.println("✅ Подключение готово. Запускай: deepseek-free-api");
+        System.out.println("Подключение готово. Запускайте: deepseek-free-api");
         return 0;
     }
 
-    static Path defaultAuthDir() {
-        String fromEnv = env("DEEPSEEK_FREE_AUTH_DIR");
-        if (fromEnv != null && !fromEnv.isEmpty()) {
-            return Path.of(fromEnv);
-        }
-        return Path.of(System.getProperty("user.home"), ".deepseek-free-api");
-    }
-
-    private static AuthStorage defaultStorage() {
-        return new AuthStorage(defaultAuthDir(), BrowserAuthService.DEFAULT_BASE_URL);
-    }
-
-    private static BrowserAuth defaultBrowser() {
-        AuthStorage storage = defaultStorage();
-        return new BrowserAuthService(
-                BrowserAuthService.DEFAULT_BASE_URL,
-                defaultAuthDir().resolve("browser-profile"),
-                env("DS_EMAIL"),
-                env("DS_PASSWORD"),
-                headlessLoginTimeoutS(),
-                storage);
-    }
-
-    private static double headlessLoginTimeoutS() {
-        String fromEnv = env("HEADLESS_LOGIN_TIMEOUT_S");
-        if (fromEnv != null && !fromEnv.isEmpty()) {
-            try {
-                return Double.parseDouble(fromEnv);
-            } catch (NumberFormatException ignored) {
-                // дефолт ниже
-            }
-        }
-        return 60;
-    }
-
-    /** Переменная окружения (CLI выходит до Spring-контекста, читаем напрямую). */
-    static String env(String key) {
-        return System.getenv(key);
+    private static void printHelp() {
+        new HelpFormatter().printHelp("deepseek-free-api", OPTIONS, true);
     }
 }

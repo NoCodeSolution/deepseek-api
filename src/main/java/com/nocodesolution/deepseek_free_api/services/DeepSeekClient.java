@@ -167,7 +167,7 @@ public class DeepSeekClient {
         } catch (ResourceAccessException e) {
             throw new UpstreamException("Completion request failed: " + e.getMessage(), e);
         } catch (HttpStatusCodeException e) {
-            throw mapCompletionError(e.getStatusCode().value(), e.getResponseBodyAsString());
+            throw mapError(e.getStatusCode().value(), e.getResponseBodyAsString(), true);
         }
     }
 
@@ -222,20 +222,13 @@ public class DeepSeekClient {
         try {
             data = MAPPER.readTree(text);
         } catch (Exception e) {
-            if (status == 401 || status == 403) {
-                throw new AuthRequiredException("Auth required: HTTP " + status);
-            }
-            throw new UpstreamException(
-                    "Expected JSON from " + path + ", got HTTP " + status + ": " + abbreviate(text, 180));
+            throw mapError(status, text, false);
         }
         return evaluateJson(path, status, data);
     }
 
     private JsonNode evaluateJson(String path, int status, JsonNode data) {
-        Long code = null;
-        if (data != null && data.isObject() && data.get("code") != null && data.get("code").isNumber()) {
-            code = data.get("code").longValue();
-        }
+        Long code = extractCode(data);
         if (status == 401 || status == 403 || (code != null && AUTH_ERROR_CODES.contains(code))) {
             throw new AuthRequiredException("Auth required: code " + (code != null ? code : status));
         }
@@ -258,16 +251,17 @@ public class DeepSeekClient {
         String contentTypeString = contentType != null ? contentType.toString() : "";
         if (!(status >= 200 && status < 300) || !contentTypeString.contains("text/event-stream")) {
             String text = StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8);
-            throw mapCompletionError(status, text);
+            throw mapError(status, text, true);
         }
         try (ClientHttpResponse stream = response) {
             return SseEventParser.streamSse(stream.getBody(), onDelta, debug);
         }
     }
 
-    private RuntimeException mapCompletionError(int status, String text) {
+    private static RuntimeException mapError(int status, String text, boolean duringCompletion) {
         if (status == 401 || status == 403) {
-            return new AuthRequiredException("Auth required during completion");
+            return new AuthRequiredException(
+                    duringCompletion ? "Auth required during completion" : "Auth required: HTTP " + status);
         }
         if (status == 429) {
             return new RateLimitException("Rate limited: HTTP 429: " + abbreviate(text, 200));
@@ -278,14 +272,20 @@ public class DeepSeekClient {
         } catch (Exception ignored) {
             // не JSON — уйдёт в общее Upstream
         }
-        if (parsed != null
-                && parsed.isObject()
-                && parsed.get("code") != null
-                && parsed.get("code").isNumber()
-                && AUTH_ERROR_CODES.contains(parsed.get("code").longValue())) {
+        Long code = extractCode(parsed);
+        if (code != null && AUTH_ERROR_CODES.contains(code)) {
             return new AuthRequiredException("Auth required during completion");
         }
-        return new UpstreamException("Completion failed: HTTP " + status + ": " + abbreviate(text, 1000));
+        return new UpstreamException(
+                (duringCompletion ? "Completion failed" : "Expected JSON, got HTTP " + status)
+                        + ": " + abbreviate(text, duringCompletion ? 1000 : 180));
+    }
+
+    private static Long extractCode(JsonNode data) {
+        if (data != null && data.isObject() && data.get("code") != null && data.get("code").isNumber()) {
+            return data.get("code").longValue();
+        }
+        return null;
     }
 
     private static JsonNode bizData(JsonNode data) {

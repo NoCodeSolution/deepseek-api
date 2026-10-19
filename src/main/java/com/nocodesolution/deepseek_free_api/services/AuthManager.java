@@ -121,7 +121,7 @@ public class AuthManager {
                     reason += "; headless-логин по кредам не удался";
                 }
                 drop(reason);
-                log.warn("Нет сохранённой авторизации. Выполни: deepseek-free-api --login");
+                log.warn("Нет сохранённой авторизации. Выполните: deepseek-free-api --login");
             }
         }
     }
@@ -136,28 +136,54 @@ public class AuthManager {
      * @param allowInteractive false — не открывать окно логина, даже если профиль мёртв
      */
     public boolean refresh(boolean allowInteractive) {
-        try {
-            return authFlight.execute(() -> performRefresh(allowInteractive));
-        } catch (RuntimeException e) {
-            return false;
+        while (true) {
+            CompletableFuture<Boolean> existing = currentRefresh.get();
+            if (existing != null && !existing.isDone()) {
+                return await(existing);
+            }
+            CompletableFuture<Boolean> newFuture = new CompletableFuture<>();
+            if (currentRefresh.compareAndSet(existing, newFuture)) {
+                try {
+                    boolean result = performRefresh(allowInteractive);
+                    newFuture.complete(result);
+                    return result;
+                } catch (RuntimeException e) {
+                    newFuture.completeExceptionally(e);
+                    return false;
+                } finally {
+                    currentRefresh.compareAndSet(newFuture, null);
+                }
+            }
         }
     }
 
     /** Принудительный интерактивный вход */
     public boolean loginNow() {
+        loginLock.lock();
         try {
-            return authFlight.execute(() -> {
-                state = AuthState.REFRESHING;
-                apply(tryInteractiveLogin());
-                log.info("Авторизация восстановлена интерактивным входом");
-                return true;
-            });
+            state = AuthState.REFRESHING;
+            apply(tryInteractiveLogin());
+            log.info("Авторизация восстановлена интерактивным входом");
+            return true;
         } catch (BrowserAuthException e) {
             drop(e.getMessage());
             return false;
         } catch (Exception e) {
             log.error("loginNow упал", e);
             drop(e.getMessage() != null ? e.getMessage() : e.toString());
+            return false;
+        } finally {
+            loginLock.unlock();
+        }
+    }
+
+    private static boolean await(CompletableFuture<Boolean> future) {
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (ExecutionException e) {
             return false;
         }
     }
