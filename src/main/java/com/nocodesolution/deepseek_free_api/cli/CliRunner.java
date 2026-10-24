@@ -11,12 +11,16 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * CLI-режимы: --manual, --import, --login, --connect.
  * Объекты собираются вручную, без Spring-контекста; режимы не стартуют Tomcat.
  */
 public final class CliRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(CliRunner.class);
 
     private static final Options OPTIONS = new Options()
             .addOption("h", "help", false, "Вывести справку")
@@ -59,7 +63,7 @@ public final class CliRunner {
         try {
             line = new DefaultParser().parse(OPTIONS, args);
         } catch (ParseException e) {
-            System.err.println("Ошибка разбора аргументов: " + e.getMessage());
+            log.error("Ошибка разбора аргументов: {}", e.getMessage());
             printHelp();
             return 1;
         }
@@ -75,7 +79,7 @@ public final class CliRunner {
         if (line.hasOption("import")) {
             String[] values = line.getOptionValues("import");
             if (values == null || values.length < 2) {
-                System.err.println("--import требует 2 аргумента: <cookies.json> \"<userToken>\"");
+                log.error("--import требует 2 аргумента: <cookies.json> \"<userToken>\"");
                 return 1;
             }
             return runImport(values[0], values[1]);
@@ -89,7 +93,7 @@ public final class CliRunner {
             try {
                 port = Integer.parseInt(portValue);
             } catch (NumberFormatException e) {
-                System.err.println("Невалидный порт для --connect: " + portValue);
+                log.error("Невалидный порт для --connect: {}", portValue);
                 return 1;
             }
             return runConnect(port);
@@ -102,11 +106,11 @@ public final class CliRunner {
         try {
             CliAuthFactory.defaultStorage().importCookies(cookiesFile, userToken);
         } catch (AuthStorageException | IOException exc) {
-            System.err.println("Ошибка: " + exc.getMessage());
+            log.error("Ошибка: {}", exc.getMessage());
             return 1;
         }
-        System.out.println("Cookies и токен импортированы.");
-        System.out.println("Запускайте: deepseek-free-api");
+        log.info("Cookies и токен импортированы.");
+        log.info("Запускайте: deepseek-free-api");
         return 0;
     }
 
@@ -118,20 +122,20 @@ public final class CliRunner {
             if (email != null && !email.isEmpty() && password != null && !password.isEmpty()) {
                 try {
                     browser.headlessCredentialsLogin();
-                    System.out.println("Авторизация DeepSeek сохранена.");
+                    log.info("Авторизация DeepSeek сохранена.");
                     return 0;
                 } catch (BrowserAuthException exc) {
-                    System.out.println("Headless-логин не удался (" + exc.getMessage() + "), открываю окно...");
+                    log.info("Headless-логин не удался ({}), открываю окно...", exc.getMessage());
                 } catch (Exception exc) {
                     // сырые исключения логируем по типу — не светим креды в stderr
-                    System.out.println("Headless-логин упал (" + exc.getClass().getSimpleName() + "), открываю окно...");
+                    log.info("Headless-логин упал ({}), открываю окно...", exc.getClass().getSimpleName());
                 }
             }
             browser.loginAndSaveAuth();
-            System.out.println("Авторизация DeepSeek сохранена.");
+            log.info("Авторизация DeepSeek сохранена.");
             return 0;
         } catch (Exception exc) {
-            System.err.println("Ошибка: " + exc.getMessage());
+            log.error("Ошибка: {}", exc.getMessage());
             return 1;
         }
     }
@@ -140,10 +144,10 @@ public final class CliRunner {
         try {
             CliAuthFactory.defaultBrowser().connectToRunningChrome(cdpPort);
         } catch (Exception exc) {
-            System.err.println("Ошибка: " + exc.getMessage());
+            log.error("Ошибка: {}", exc.getMessage());
             return 1;
         }
-        System.out.println("Подключение готово. Запускайте: deepseek-free-api");
+        log.info("Подключение готово. Запускайте: deepseek-free-api");
         return 0;
     }
 

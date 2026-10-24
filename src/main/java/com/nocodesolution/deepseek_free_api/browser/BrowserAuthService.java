@@ -139,9 +139,8 @@ public class BrowserAuthService implements BrowserAuth {
             try {
                 Page page = firstPage(context);
                 page.navigate(baseUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
-                System.out.println(
-                        "\nОткроется окно DeepSeek. Выполните вход любым способом.\n"
-                                + "   Окно закроется после успешного входа.\n");
+                log.info("Откроется окно DeepSeek. Выполните вход любым способом.\n"
+                        + "   Окно закроется после успешного входа.");
                 AuthApiWait wait = new AuthApiWait(Duration.ofSeconds(LOGIN_TIMEOUT_S));
                 context.onResponse(wait::onResponse);
                 wait.await();
@@ -167,7 +166,7 @@ public class BrowserAuthService implements BrowserAuth {
     @Override
     public Credentials connectToRunningChrome(int cdpPort) throws BrowserAuthException {
         String cdpUrl = "http://127.0.0.1:" + cdpPort;
-        System.out.println("\nПодключение к Chrome на " + cdpUrl + "...");
+        log.info("Подключение к Chrome на {}...", cdpUrl);
         try (Playwright playwright = Playwright.create()) {
             Browser browser;
             try {
@@ -205,9 +204,8 @@ public class BrowserAuthService implements BrowserAuth {
                 String token = readToken(page);
                 List<Cookie> cookies = context.cookies(List.of(baseUrl));
                 if (token.isEmpty()) {
-                    System.out.println(
-                            "Вы не выполнили вход в DeepSeek. Открывается страница для входа.\n"
-                                    + "   После входа нажмите Enter в этом терминале.");
+                    log.info("Вы не выполнили вход в DeepSeek. Открывается страница для входа.\n"
+                            + "   После входа нажмите Enter в этом терминале.");
                     page.navigate(baseUrl + "/");
                     try {
                         new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).readLine();

@@ -14,10 +14,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Разбор SSE-событий и извлечение дельт текста DeepSeek. */
 public final class SseEventParser {
 
+    private static final Logger log = LoggerFactory.getLogger(SseEventParser.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String[] RESPONSE_TYPES = {"RESPONSE", "TEMPLATE_RESPONSE", "THINK"};
     private static final String FRAG_KEY_PREFIX = "frag|";
@@ -274,7 +277,7 @@ public final class SseEventParser {
             }
             if (debug) {
                 String name = event.event().isEmpty() ? "message" : event.event();
-                System.out.println("[event] " + name + " " + abbreviate(event.data(), 500));
+                log.debug("[event] {} {}", name, abbreviate(event.data(), 500));
             }
             JsonNode parsed;
             try {

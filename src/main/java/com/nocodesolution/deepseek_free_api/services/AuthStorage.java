@@ -18,9 +18,13 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Персистентность авторизации (формат auth.json v1). */
 public class AuthStorage {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthStorage.class);
 
     public static final int AUTH_FORMAT_VERSION = 1;
 
@@ -139,7 +143,7 @@ public class AuthStorage {
     }
 
     public static void printManualInstructions() {
-        System.out.println("""
+        log.info("""
                 
                 ==================================================
                   Ручной экспорт сессии DeepSeek
