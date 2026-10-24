@@ -1,37 +1,30 @@
 package com.nocodesolution.deepseek_free_api.services;
 
-import com.nocodesolution.deepseek_free_api.config.Auth;
 import com.nocodesolution.deepseek_free_api.config.Deepseek;
-import java.nio.file.Path;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
  * Решатель PoW-челленджа DeepSeek на Chicory в AoT-режиме.
- * WASM-байты загружаются лениво при первом solve: кэш в auth.dir
- * или скачивание по deepseek.pow-wasm-url; модуль парсится один раз.
+ * WASM-байты загружаются лениво при первом solve из classpath;
+ * модуль парсится один раз.
  */
 @Component
 public final class ChicoryPowSolver implements PowSolver {
 
     public static final String SUPPORTED_ALGORITHM = "DeepSeekHashV1";
 
-    private static final String WASM_CACHE_FILE = "sha3_wasm_bg.wasm";
-
     private final Deepseek deepseek;
-    private final Auth auth;
     private volatile DeepSeekHashGlue glue;
 
     @Autowired
-    public ChicoryPowSolver(Deepseek deepseek, Auth auth) {
+    public ChicoryPowSolver(Deepseek deepseek) {
         this.deepseek = deepseek;
-        this.auth = auth;
     }
 
     private ChicoryPowSolver(DeepSeekHashGlue glue) {
         this.deepseek = null;
-        this.auth = null;
         this.glue = glue;
     }
 
@@ -51,8 +44,7 @@ public final class ChicoryPowSolver implements PowSolver {
             synchronized (this) {
                 g = glue;
                 if (g == null) {
-                    g = new DeepSeekHashGlue(PowWasmLoader.load(
-                            Path.of(auth.dir()).resolve(WASM_CACHE_FILE), deepseek.powWasmUrl()));
+                    g = new DeepSeekHashGlue(PowWasmLoader.load());
                     glue = g;
                 }
             }

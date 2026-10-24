@@ -78,7 +78,7 @@ java -jar target/deepseek-free-api-0.0.1-SNAPSHOT.jar --import cookies.json "<us
 java -jar target/deepseek-free-api-0.0.1-SNAPSHOT.jar   # http://localhost:18632
 ```
 
-Сессия (auth.json v1), browser-profile и кэш WASM лежат в `~/.deepseek-free-api/`
+Сессия (auth.json v1) и browser-profile лежат в `~/.deepseek-free-api/`
 (переопределяется `AUTH_DIR` / `auth.dir`).
 
 ---
@@ -176,8 +176,7 @@ env-переменные. Имена env — Spring relaxed binding
 | `deepseek.log-sse` | `DEEPSEEK_LOG_SSE` | false | дамп SSE-событий в лог |
 | `deepseek.connect-timeout-ms` | `DEEPSEEK_CONNECT_TIMEOUT_MS` | 30000 | connect-таймаут |
 | `deepseek.read-timeout-ms` | `DEEPSEEK_READ_TIMEOUT_MS` | 0 | read-таймаут; 0 = бесконечный SSE-стрим |
-| `deepseek.pow-wasm-url` | `DEEPSEEK_SHA3_WASM` | URL fe-static.deepseek.com | URL sha3_wasm_bg.wasm для кэша в `<auth.dir>` |
-| `auth.dir` | `AUTH_DIR` | ~/.deepseek-free-api | auth.json, browser-profile, кэш WASM |
+| `auth.dir` | `AUTH_DIR` | ~/.deepseek-free-api | auth.json, browser-profile |
 | `auth.interactive-login` | `AUTH_INTERACTIVE_LOGIN` | true | авто-открытие окна логина при протухании |
 | `auth.refresh-interval-h` | `AUTH_REFRESH_INTERVAL_H` | 6 | фоновый silent refresh, часов |
 | `auth.email` | `AUTH_EMAIL` | — | креды для headless авто-логина (CLI читает `DS_EMAIL`) |
@@ -218,7 +217,7 @@ docker build -t deepseek-free-api .
 docker run -p 18632:18632 -v deepseek-auth:/data deepseek-free-api
 ```
 
-- `/data` — volume с сессией (`auth.json`, browser-profile, кэш WASM);
+- `/data` — volume с сессией (`auth.json`, browser-profile);
   пересоздание контейнера сессию не теряет.
 - Образ собирается multi-stage: Maven-сборка → JRE 21 + playwright chromium
   (со всеми системными зависимостями).
@@ -231,6 +230,17 @@ docker run -p 18632:18632 -v deepseek-auth:/data deepseek-free-api
 ```bash
 mvn test
 ```
+
+## PoW WASM
+
+Для решения PoW-челленджа DeepSeek приложение использует встроенный WASM-модуль
+`src/main/resources/sha3_wasm_bg.wasm`. Он копируется в jar при сборке и не требует
+скачивания из интернета.
+
+Если DeepSeek изменит алгоритм PoW и текущий файл перестанет подходить, новый
+`sha3_wasm_bg.wasm` можно найти в ответах web-версии чата (сеть → `fe-static.deepseek.com`,
+файл вида `sha3_wasm_bg.<hash>.wasm`). Актуальный URL на момент сборки:
+`https://fe-static.deepseek.com/chat/static/sha3_wasm_bg.7b9ca65ddd.wasm`.
 
 ## Ограничения
 
