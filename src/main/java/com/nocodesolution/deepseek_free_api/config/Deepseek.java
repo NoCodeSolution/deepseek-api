@@ -14,5 +14,6 @@ public record Deepseek(
         int retryBackoffS,
         boolean logSse,
         int connectTimeoutMs,
-        int readTimeoutMs) {
+        int readTimeoutMs,
+        String wasmPath) {
 }

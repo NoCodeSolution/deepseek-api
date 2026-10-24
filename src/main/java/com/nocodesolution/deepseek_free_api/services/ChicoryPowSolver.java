@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Решатель PoW-челленджа DeepSeek на Chicory в AoT-режиме.
- * WASM-байты загружаются лениво при первом solve из classpath;
+ * WASM-байты загружаются лениво при первом solve: либо из файла
+ * {@code deepseek.wasm-path}, либо из встроенного classpath-ресурса;
  * модуль парсится один раз.
  */
 @Component
@@ -44,7 +45,7 @@ public final class ChicoryPowSolver implements PowSolver {
             synchronized (this) {
                 g = glue;
                 if (g == null) {
-                    g = new DeepSeekHashGlue(PowWasmLoader.load());
+                    g = new DeepSeekHashGlue(PowWasmLoader.load(deepseek.wasmPath()));
                     glue = g;
                 }
             }

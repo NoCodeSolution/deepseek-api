@@ -176,6 +176,7 @@ env-переменные. Имена env — Spring relaxed binding
 | `deepseek.log-sse` | `DEEPSEEK_LOG_SSE` | false | дамп SSE-событий в лог |
 | `deepseek.connect-timeout-ms` | `DEEPSEEK_CONNECT_TIMEOUT_MS` | 30000 | connect-таймаут |
 | `deepseek.read-timeout-ms` | `DEEPSEEK_READ_TIMEOUT_MS` | 0 | read-таймаут; 0 = бесконечный SSE-стрим |
+| `deepseek.wasm-path` | `DEEPSEEK_WASM_PATH` | — | путь к внешнему `sha3_wasm_bg.wasm`; пусто = встроенный из classpath |
 | `auth.dir` | `AUTH_DIR` | ~/.deepseek-free-api | auth.json, browser-profile |
 | `auth.interactive-login` | `AUTH_INTERACTIVE_LOGIN` | true | авто-открытие окна логина при протухании |
 | `auth.refresh-interval-h` | `AUTH_REFRESH_INTERVAL_H` | 6 | фоновый silent refresh, часов |
@@ -233,13 +234,16 @@ mvn test
 
 ## PoW WASM
 
-Для решения PoW-челленджа DeepSeek приложение использует встроенный WASM-модуль
-`src/main/resources/sha3_wasm_bg.wasm`. Он копируется в jar при сборке и не требует
-скачивания из интернета.
+Для решения PoW-челленджа DeepSeek приложение использует WASM-модуль
+`sha3_wasm_bg.wasm`. По умолчанию берётся встроенная копия из classpath
+(`src/main/resources/sha3_wasm_bg.wasm`), поэтому интернет не нужен.
 
-Если DeepSeek изменит алгоритм PoW и текущий файл перестанет подходить, новый
-`sha3_wasm_bg.wasm` можно найти в ответах web-версии чата (сеть → `fe-static.deepseek.com`,
-файл вида `sha3_wasm_bg.<hash>.wasm`). Актуальный URL на момент сборки:
+Если нужно подменить файл (например, DeepSeek обновил алгоритм), задайте
+`DEEPSEEK_WASM_PATH=/path/to/sha3_wasm_bg.wasm`. Пустое значение — использовать
+встроенный ресурс.
+
+Где взять новый файл: в ответах web-версии чата ищите запрос к `fe-static.deepseek.com`,
+файл вида `sha3_wasm_bg.<hash>.wasm`. Актуальный URL на момент сборки:
 `https://fe-static.deepseek.com/chat/static/sha3_wasm_bg.7b9ca65ddd.wasm`.
 
 ## Ограничения

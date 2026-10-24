@@ -41,7 +41,7 @@ class CompletionServiceTest {
     private static Deepseek props(int retryBackoffS) {
         return new Deepseek(
                 "https://chat.deepseek.com", "2.0.0", "/completion", "/delete",
-                true, "deepseek-chat", "text", retryBackoffS, false, 30000, 0);
+                true, "deepseek-chat", "text", retryBackoffS, false, 30000, 0, "");
     }
 
     private static ChatCompletionRequest req() {
