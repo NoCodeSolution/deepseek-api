@@ -14,7 +14,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig {
 
-    /** Явная регистрация фильтра (ApiKeyFilter — не компонент, иначе двойная регистрация). */
     @Bean
     public FilterRegistrationBean<ApiKeyFilter> apiKeyFilterRegistration(Proxy proxy, ObjectMapper objectMapper) {
         FilterRegistrationBean<ApiKeyFilter> registration = new FilterRegistrationBean<>();
