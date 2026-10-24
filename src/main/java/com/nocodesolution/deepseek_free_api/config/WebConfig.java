@@ -8,13 +8,13 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
-import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig {
 
+    /** Явная регистрация фильтра (ApiKeyFilter — не компонент, иначе двойная регистрация). */
     @Bean
     public FilterRegistrationBean<ApiKeyFilter> apiKeyFilterRegistration(Proxy proxy, ObjectMapper objectMapper) {
         FilterRegistrationBean<ApiKeyFilter> registration = new FilterRegistrationBean<>();
@@ -29,11 +29,11 @@ public class WebConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                if (!StringUtils.hasText(cors.origin())) {
+                if (cors.origins().isEmpty()) {
                     return;
                 }
                 registry.addMapping("/**")
-                        .allowedOrigins(cors.origin())
+                        .allowedOrigins(cors.origins().toArray(new String[0]))
                         .allowedMethods("*")
                         .allowedHeaders("*");
             }
