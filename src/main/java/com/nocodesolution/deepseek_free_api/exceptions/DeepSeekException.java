@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.exceptions;
 
 /** Базовая ошибка DeepSeek API. */
 public class DeepSeekException extends RuntimeException {

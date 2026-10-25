@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.pow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -19,6 +19,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import com.nocodesolution.deepseek_free_api.exceptions.PowException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 

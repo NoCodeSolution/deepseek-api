@@ -6,10 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nocodesolution.deepseek_free_api.services.SseEventParser;
-import com.nocodesolution.deepseek_free_api.services.SseEventParser.Delta;
-import com.nocodesolution.deepseek_free_api.services.SseEventParser.SseEvent;
-import com.nocodesolution.deepseek_free_api.services.SseEventParser.StreamResult;
+import com.nocodesolution.deepseek_free_api.services.deepseek.sse.SseEventParser;
+import com.nocodesolution.deepseek_free_api.services.deepseek.sse.SseEventParser.Delta;
+import com.nocodesolution.deepseek_free_api.services.deepseek.sse.SseEventParser.SseEvent;
+import com.nocodesolution.deepseek_free_api.services.deepseek.sse.SseEventParser.StreamResult;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;

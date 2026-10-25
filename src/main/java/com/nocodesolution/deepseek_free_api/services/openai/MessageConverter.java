@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.openai;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

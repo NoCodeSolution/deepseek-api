@@ -1,8 +1,8 @@
 package com.nocodesolution.deepseek_free_api.cli;
 
-import com.nocodesolution.deepseek_free_api.browser.BrowserAuth;
-import com.nocodesolution.deepseek_free_api.browser.BrowserAuthService;
-import com.nocodesolution.deepseek_free_api.services.AuthStorage;
+import com.nocodesolution.deepseek_free_api.services.auth.BrowserAuth;
+import com.nocodesolution.deepseek_free_api.services.auth.BrowserAuthService;
+import com.nocodesolution.deepseek_free_api.services.auth.AuthStorage;
 import java.nio.file.Path;
 
 /** Фабрика auth-зависимостей для CLI-режимов. */

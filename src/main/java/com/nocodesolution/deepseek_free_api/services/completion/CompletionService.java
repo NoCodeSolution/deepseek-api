@@ -1,11 +1,11 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.completion;
 
 import com.nocodesolution.deepseek_free_api.config.Deepseek;
 import com.nocodesolution.deepseek_free_api.dto.ChatCompletionRequest;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.AuthRequiredException;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.RateLimitException;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.UpstreamException;
-import com.nocodesolution.deepseek_free_api.services.SseEventParser.StreamResult;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException.AuthRequiredException;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException.RateLimitException;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException.UpstreamException;
+import com.nocodesolution.deepseek_free_api.services.deepseek.sse.SseEventParser.StreamResult;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,6 +14,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
+
+import com.nocodesolution.deepseek_free_api.services.auth.AuthManager;
+import com.nocodesolution.deepseek_free_api.services.deepseek.DeepSeekClient;
+import com.nocodesolution.deepseek_free_api.services.openai.MessageConverter;
+import com.nocodesolution.deepseek_free_api.services.openai.ModelResolver;
+import com.nocodesolution.deepseek_free_api.services.privacy.PromptSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

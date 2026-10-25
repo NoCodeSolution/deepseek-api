@@ -1,9 +1,11 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.pow;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+
+import com.nocodesolution.deepseek_free_api.exceptions.PowException;
 import org.springframework.util.StringUtils;
 
 /**

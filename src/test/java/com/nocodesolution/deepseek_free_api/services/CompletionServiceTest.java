@@ -13,11 +13,11 @@ import com.nocodesolution.deepseek_free_api.FakeDeepSeekClient;
 import com.nocodesolution.deepseek_free_api.config.Deepseek;
 import com.nocodesolution.deepseek_free_api.dto.ChatCompletionRequest;
 import com.nocodesolution.deepseek_free_api.dto.ChatMessage;
-import com.nocodesolution.deepseek_free_api.services.CompletionService.CompletionHandle;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.AuthRequiredException;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.RateLimitException;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.UpstreamException;
-import com.nocodesolution.deepseek_free_api.services.SseEventParser.StreamResult;
+import com.nocodesolution.deepseek_free_api.services.completion.CompletionService.CompletionHandle;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException.AuthRequiredException;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException.RateLimitException;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException.UpstreamException;
+import com.nocodesolution.deepseek_free_api.services.deepseek.sse.SseEventParser.StreamResult;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Queue;
@@ -25,6 +25,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+
+import com.nocodesolution.deepseek_free_api.services.auth.AuthManager;
+import com.nocodesolution.deepseek_free_api.services.completion.CompletionEvent;
+import com.nocodesolution.deepseek_free_api.services.completion.CompletionService;
+import com.nocodesolution.deepseek_free_api.services.deepseek.DeepSeekClient;
+import com.nocodesolution.deepseek_free_api.services.openai.ModelResolver;
+import com.nocodesolution.deepseek_free_api.services.privacy.PromptSanitizer;
 import org.junit.jupiter.api.Test;
 
 /**

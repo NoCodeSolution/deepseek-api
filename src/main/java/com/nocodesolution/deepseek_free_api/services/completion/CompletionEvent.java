@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.completion;
 
 /** Событие оркестрации completion. */
 public sealed interface CompletionEvent {

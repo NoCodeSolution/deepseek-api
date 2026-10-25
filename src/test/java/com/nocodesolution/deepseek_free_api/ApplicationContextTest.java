@@ -2,10 +2,10 @@ package com.nocodesolution.deepseek_free_api;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import com.nocodesolution.deepseek_free_api.browser.BrowserAuth;
+import com.nocodesolution.deepseek_free_api.services.auth.BrowserAuth;
 import com.nocodesolution.deepseek_free_api.controllers.ApiController;
-import com.nocodesolution.deepseek_free_api.services.ChicoryPowSolver;
-import com.nocodesolution.deepseek_free_api.services.CompletionService;
+import com.nocodesolution.deepseek_free_api.services.pow.ChicoryPowSolver;
+import com.nocodesolution.deepseek_free_api.services.completion.CompletionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

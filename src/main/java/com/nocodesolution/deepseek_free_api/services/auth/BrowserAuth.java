@@ -1,6 +1,7 @@
-package com.nocodesolution.deepseek_free_api.browser;
+package com.nocodesolution.deepseek_free_api.services.auth;
 
-import com.nocodesolution.deepseek_free_api.services.Credentials;
+import com.nocodesolution.deepseek_free_api.exceptions.BrowserAuthException;
+import com.nocodesolution.deepseek_free_api.model.Credentials;
 
 /** Браузерная авторизация. Реализация — Playwright (синхронный API). */
 public interface BrowserAuth {

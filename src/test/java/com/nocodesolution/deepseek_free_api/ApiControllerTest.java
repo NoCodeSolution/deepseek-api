@@ -7,7 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.AuthRequiredException;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException.AuthRequiredException;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;

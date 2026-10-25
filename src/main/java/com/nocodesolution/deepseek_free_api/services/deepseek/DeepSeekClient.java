@@ -1,13 +1,15 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.deepseek;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.AuthRequiredException;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.RateLimitException;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException.UpstreamException;
-import com.nocodesolution.deepseek_free_api.services.SseEventParser.StreamResult;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException.AuthRequiredException;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException.RateLimitException;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException.UpstreamException;
+import com.nocodesolution.deepseek_free_api.services.deepseek.sse.SseEventParser;
+import com.nocodesolution.deepseek_free_api.services.deepseek.sse.SseEventParser.StreamResult;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -16,6 +18,8 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
+
+import com.nocodesolution.deepseek_free_api.services.pow.PowSolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -184,7 +188,6 @@ public class DeepSeekClient {
         }
     }
 
-    // ─── внутреннее ───────────────────────────────────────────
 
     private JsonNode requestJson(String path, ObjectNode body) {
         URI uri = URI.create(baseUrl + path);

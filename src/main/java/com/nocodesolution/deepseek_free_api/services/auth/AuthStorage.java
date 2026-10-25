@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.auth;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -18,6 +18,9 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.nocodesolution.deepseek_free_api.exceptions.AuthStorageException;
+import com.nocodesolution.deepseek_free_api.model.Credentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

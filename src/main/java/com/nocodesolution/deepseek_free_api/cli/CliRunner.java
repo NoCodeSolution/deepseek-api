@@ -1,9 +1,9 @@
 package com.nocodesolution.deepseek_free_api.cli;
 
-import com.nocodesolution.deepseek_free_api.browser.BrowserAuth;
-import com.nocodesolution.deepseek_free_api.browser.BrowserAuthException;
-import com.nocodesolution.deepseek_free_api.services.AuthStorage;
-import com.nocodesolution.deepseek_free_api.services.AuthStorageException;
+import com.nocodesolution.deepseek_free_api.services.auth.BrowserAuth;
+import com.nocodesolution.deepseek_free_api.exceptions.BrowserAuthException;
+import com.nocodesolution.deepseek_free_api.services.auth.AuthStorage;
+import com.nocodesolution.deepseek_free_api.exceptions.AuthStorageException;
 import java.io.IOException;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;

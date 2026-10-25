@@ -7,9 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekClient;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekException;
-import com.nocodesolution.deepseek_free_api.services.SseEventParser.StreamResult;
+import com.nocodesolution.deepseek_free_api.services.deepseek.DeepSeekClient;
+import com.nocodesolution.deepseek_free_api.exceptions.DeepSeekException;
+import com.nocodesolution.deepseek_free_api.services.deepseek.sse.SseEventParser.StreamResult;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;

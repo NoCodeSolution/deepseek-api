@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.privacy;
 
 import java.util.List;
 import java.util.regex.MatchResult;

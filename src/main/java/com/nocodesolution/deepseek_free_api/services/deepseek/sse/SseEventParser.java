@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.deepseek.sse;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,15 +41,15 @@ public final class SseEventParser {
 
     public static SseEvent parseSseEvent(String raw) {
         String event = "";
-        String data = "";
+        StringBuilder data = new StringBuilder();
         for (String line : raw.split("\r?\n", -1)) {
             if (line.startsWith("event:")) {
                 event = line.substring(6).strip();
             } else if (line.startsWith("data:")) {
-                data += (data.isEmpty() ? "" : "\n") + line.substring(5).stripLeading();
+                data.append((data.isEmpty()) ? "" : "\n").append(line.substring(5).stripLeading());
             }
         }
-        return new SseEvent(event, data);
+        return new SseEvent(event, data.toString());
     }
 
     public static Delta extractDeltaText(JsonNode node, Map<String, String> cache, String eventName) {

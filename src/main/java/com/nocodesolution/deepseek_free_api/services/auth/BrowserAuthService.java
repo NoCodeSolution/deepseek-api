@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.browser;
+package com.nocodesolution.deepseek_free_api.services.auth;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,8 +15,8 @@ import com.microsoft.playwright.options.WaitForSelectorState;
 import com.microsoft.playwright.options.WaitUntilState;
 import com.nocodesolution.deepseek_free_api.auth.CookieHeaderBuilder;
 import com.nocodesolution.deepseek_free_api.auth.TokenNormalizer;
-import com.nocodesolution.deepseek_free_api.services.AuthStorage;
-import com.nocodesolution.deepseek_free_api.services.Credentials;
+import com.nocodesolution.deepseek_free_api.exceptions.BrowserAuthException;
+import com.nocodesolution.deepseek_free_api.model.Credentials;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -112,8 +112,7 @@ public class BrowserAuthService implements BrowserAuth {
         }
         log.info("Headless-логин по кредам для {}", maskedEmail(email));
         try (Playwright playwright = Playwright.create()) {
-            BrowserContext context = launchPersistent(playwright, true, scrubbedEnv());
-            try {
+            try (BrowserContext context = launchPersistent(playwright, true, scrubbedEnv())) {
                 Page page = firstPage(context);
                 page.navigate(baseUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
                 AuthApiWait wait = new AuthApiWait(Duration.ofMillis((long) (headlessLoginTimeoutS * 1000)));
@@ -126,8 +125,6 @@ public class BrowserAuthService implements BrowserAuth {
                     throw exc;
                 }
                 return saveSession(context.cookies(List.of(baseUrl)), readToken(page), true);
-            } finally {
-                context.close();
             }
         }
     }
@@ -135,8 +132,7 @@ public class BrowserAuthService implements BrowserAuth {
     @Override
     public Credentials loginAndSaveAuth() throws BrowserAuthException {
         try (Playwright playwright = Playwright.create()) {
-            BrowserContext context = launchPersistent(playwright, false, null);
-            try {
+            try (BrowserContext context = launchPersistent(playwright, false, null)) {
                 Page page = firstPage(context);
                 page.navigate(baseUrl, new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
                 log.info("Откроется окно DeepSeek. Выполните вход любым способом.\n"
@@ -145,8 +141,6 @@ public class BrowserAuthService implements BrowserAuth {
                 context.onResponse(wait::onResponse);
                 wait.await();
                 return saveSession(context.cookies(List.of(baseUrl)), readToken(page), true);
-            } finally {
-                context.close();
             }
         }
     }
@@ -154,11 +148,8 @@ public class BrowserAuthService implements BrowserAuth {
     @Override
     public void clearProfileSession() throws BrowserAuthException {
         try (Playwright playwright = Playwright.create()) {
-            BrowserContext context = launchPersistent(playwright, true, null);
-            try {
+            try (BrowserContext context = launchPersistent(playwright, true, null)) {
                 context.clearCookies();
-            } finally {
-                context.close();
             }
         }
     }
@@ -183,7 +174,7 @@ public class BrowserAuthService implements BrowserAuth {
             }
             try {
                 BrowserContext context =
-                        !browser.contexts().isEmpty() ? browser.contexts().get(0) : browser.newContext();
+                        !browser.contexts().isEmpty() ? browser.contexts().getFirst() : browser.newContext();
                 Page page = null;
                 for (BrowserContext ctx : browser.contexts()) {
                     for (Page candidate : ctx.pages()) {
@@ -226,8 +217,6 @@ public class BrowserAuthService implements BrowserAuth {
             }
         }
     }
-
-    // ─── Запуск браузера ──────────────────────────────────────
 
     private BrowserContext launchPersistent(Playwright playwright, boolean headless, Map<String, String> env)
             throws BrowserAuthException {
@@ -291,10 +280,8 @@ public class BrowserAuthService implements BrowserAuth {
         }
     }
 
-    // ─── Сессия ─────────────────────────────────────────────────
-
     private Page firstPage(BrowserContext context) {
-        return !context.pages().isEmpty() ? context.pages().get(0) : context.newPage();
+        return !context.pages().isEmpty() ? context.pages().getFirst() : context.newPage();
     }
 
     private String readToken(Page page) {
@@ -331,7 +318,7 @@ public class BrowserAuthService implements BrowserAuth {
         if (token == null || token.isEmpty()) {
             throw new BrowserAuthException("В localStorage нет userToken. Логин не завершён.");
         }
-        if (!cookies.stream().anyMatch(c -> SESSION_COOKIE.equals(c.path("name").asText()))) {
+        if (cookies.stream().noneMatch(c -> SESSION_COOKIE.equals(c.path("name").asText()))) {
             throw new BrowserAuthException("В куках нет ds_session_id. Логин не завершён.");
         }
     }
@@ -361,8 +348,6 @@ public class BrowserAuthService implements BrowserAuth {
         }
         return node;
     }
-
-    // ─── Ожидание авторизованного вызова API ──
 
     private static final class AuthApiWait {
         private final CompletableFuture<Void> done = new CompletableFuture<>();
@@ -435,8 +420,6 @@ public class BrowserAuthService implements BrowserAuth {
         return "";
     }
 
-    // ─── Форма логина ─────────────────────────────────────────
-
     private void fillLoginForm(Page page) throws BrowserAuthException {
         Locator emailInput = page.locator(
                 "input[type=\"email\"], input[name=\"email\"], input[placeholder*=\"mail\" i]").first();
@@ -477,8 +460,6 @@ public class BrowserAuthService implements BrowserAuth {
         }
         submit.click();
     }
-
-    // ─── Утилиты ────────────────────────────────────────────────
 
     private static String maskedEmail(String email) {
         int at = email.indexOf('@');

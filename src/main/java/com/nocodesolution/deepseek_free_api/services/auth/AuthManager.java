@@ -1,7 +1,6 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.auth;
 
-import com.nocodesolution.deepseek_free_api.browser.BrowserAuth;
-import com.nocodesolution.deepseek_free_api.browser.BrowserAuthException;
+import com.nocodesolution.deepseek_free_api.exceptions.BrowserAuthException;
 import com.nocodesolution.deepseek_free_api.enums.AuthState;
 import java.io.IOException;
 import java.time.Instant;
@@ -12,6 +11,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+
+import com.nocodesolution.deepseek_free_api.exceptions.AuthStorageException;
+import com.nocodesolution.deepseek_free_api.model.Credentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

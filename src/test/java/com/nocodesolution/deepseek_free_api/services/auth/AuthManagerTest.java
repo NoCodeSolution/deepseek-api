@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -8,8 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.nocodesolution.deepseek_free_api.browser.BrowserAuth;
-import com.nocodesolution.deepseek_free_api.browser.BrowserAuthException;
+import com.nocodesolution.deepseek_free_api.exceptions.BrowserAuthException;
 import com.nocodesolution.deepseek_free_api.enums.AuthState;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -22,6 +21,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import com.nocodesolution.deepseek_free_api.model.Credentials;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

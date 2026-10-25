@@ -1,7 +1,9 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.pow;
 
 import com.nocodesolution.deepseek_free_api.config.Deepseek;
 import java.util.Map;
+
+import com.nocodesolution.deepseek_free_api.exceptions.PowException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

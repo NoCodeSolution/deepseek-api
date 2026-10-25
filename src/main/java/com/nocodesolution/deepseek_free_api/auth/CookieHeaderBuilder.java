@@ -1,7 +1,7 @@
 package com.nocodesolution.deepseek_free_api.auth;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.nocodesolution.deepseek_free_api.services.AuthStorageException;
+import com.nocodesolution.deepseek_free_api.exceptions.AuthStorageException;
 import java.util.ArrayList;
 import java.util.List;
 

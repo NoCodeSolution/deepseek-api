@@ -4,9 +4,9 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nocodesolution.deepseek_free_api.services.AuthManager;
-import com.nocodesolution.deepseek_free_api.services.DeepSeekClient;
-import com.nocodesolution.deepseek_free_api.services.PowSolver;
+import com.nocodesolution.deepseek_free_api.services.auth.AuthManager;
+import com.nocodesolution.deepseek_free_api.services.deepseek.DeepSeekClient;
+import com.nocodesolution.deepseek_free_api.services.pow.PowSolver;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;

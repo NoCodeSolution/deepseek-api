@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.services.openai;
 
 import com.nocodesolution.deepseek_free_api.config.Deepseek;
 import java.util.Locale;
@@ -30,7 +30,7 @@ public class ModelResolver {
         return deepseek.defaultModel();
     }
 
-    static String resolveModelType(String model) {
+    public static String resolveModelType(String model) {
         String lowered = model.toLowerCase(Locale.ROOT);
         if (lowered.contains("reasoner") || lowered.contains("r1")) {
             return "deepseek-reasoner";

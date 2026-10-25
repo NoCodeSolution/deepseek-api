@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.services;
+package com.nocodesolution.deepseek_free_api.exceptions;
 
 /** Ошибка чтения/валидации сохранённой авторизации. */
 public class AuthStorageException extends RuntimeException {

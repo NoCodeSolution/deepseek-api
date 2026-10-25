@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.nocodesolution.deepseek_free_api.dto.ChatMessage;
-import com.nocodesolution.deepseek_free_api.services.MessageConverter;
+import com.nocodesolution.deepseek_free_api.services.openai.MessageConverter;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

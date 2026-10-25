@@ -1,4 +1,4 @@
-package com.nocodesolution.deepseek_free_api.browser;
+package com.nocodesolution.deepseek_free_api.exceptions;
 
 /** Ошибка браузерной авторизации. Сообщения — свои, безопасны для лога. */
 public class BrowserAuthException extends RuntimeException {

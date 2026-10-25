@@ -1,7 +1,7 @@
 package com.nocodesolution.deepseek_free_api;
 
-import com.nocodesolution.deepseek_free_api.services.DeepSeekClient;
-import com.nocodesolution.deepseek_free_api.services.SseEventParser.StreamResult;
+import com.nocodesolution.deepseek_free_api.services.deepseek.DeepSeekClient;
+import com.nocodesolution.deepseek_free_api.services.deepseek.sse.SseEventParser.StreamResult;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
