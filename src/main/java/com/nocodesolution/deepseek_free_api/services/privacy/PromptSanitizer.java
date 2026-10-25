@@ -8,8 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Детерминированное (regex, без ML) маскирование секретов в prompt до отправки в DeepSeek (план §7).
- * Конструктор без Spring; Spring-бин собирается в ServiceConfig.
+ * Детерминированное маскирование секретов в prompt до отправки в DeepSeek.
  *
  * <p>Порядок детекторов — от специфичных к общим: PEM → пары key=value (съедают
  * «Authorization: Bearer …» целиком) → Bearer → JWT → sk-ключи → AWS → длинные токены →

@@ -71,7 +71,7 @@ public abstract class ApiControllerTestBase {
         return rest.postForEntity("/v1/chat/completions", new HttpEntity<>(json, headers), String.class);
     }
 
-    /** Удаление чата идёт после Done на виртуальном трейде — ждём с дедлайном. */
+    /** Удаление чата идёт после Done на виртуальном потоке — ждём с дедлайном. */
     protected void awaitDeleted(String sessionId) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 5000;
         while (System.currentTimeMillis() < deadline) {

@@ -25,9 +25,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Оркестрация completion:
- * задача на виртуальном трейде складывает события в очередь, контроллер читает.
- * Режим «1 вопрос = 1 чат»: сессия удаляется в finally (аналог asyncio.shield —
- * удаление не прерывается отменой основной задачи).
+ * задача на виртуальном потоке складывает события в очередь, контроллер читает.
+ * Режим «1 вопрос = 1 чат»: сессия удаляется в finally
  */
 public class CompletionService {
 
@@ -63,7 +62,7 @@ public class CompletionService {
         this.clientFactory = clientFactory;
     }
 
-    /** Создаёт очередь, запускает задачу на виртуальном трейде, возвращает дескриптор. */
+    /** Создаёт очередь, запускает задачу на виртуальном потоке, возвращает дескриптор. */
     public CompletionHandle startCompletion(ChatCompletionRequest req) {
         BlockingQueue<CompletionEvent> queue = new LinkedBlockingQueue<>();
         Future<?> task = executor.submit(() -> runCompletion(req, queue));
@@ -140,8 +139,8 @@ public class CompletionService {
     }
 
     /**
-     * Best-effort удаление чата на отдельном виртуальном трейде; текущий трейд
-     * дожидается его конца даже при interrupt — аналог asyncio.shield.
+     * Best-effort удаление чата на отдельном виртуальном потоке; текущий поток
+     * дожидается его конца даже при interrupt.
      */
     private void maybeDelete(DeepSeekClient client, String sessionId) {
         if (!deepseek.deleteChat() || sessionId == null) {

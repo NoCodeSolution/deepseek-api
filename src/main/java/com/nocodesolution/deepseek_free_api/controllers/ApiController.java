@@ -115,7 +115,7 @@ public class ApiController {
         }
         if (req.stream()) {
             // StreamingResponseBody внутри ResponseEntity Spring 6.2 не поддерживает;
-            // пишем SSE напрямую — запрос и так на виртуальном трейде, async не нужен
+            // пишем SSE напрямую — запрос и так на виртуальном потоке, async не нужен
             streamResponse(req, response);
             return null;
         }
@@ -147,7 +147,7 @@ public class ApiController {
             while (true) {
                 CompletionEvent event = take(handle);
                 if (event == null) {
-                    return; // трейд прерван
+                    return; // поток прерван
                 }
                 switch (event) {
                     case CompletionEvent.TextDelta delta -> writeFrame(output, MessageConverter.openaiChunk(

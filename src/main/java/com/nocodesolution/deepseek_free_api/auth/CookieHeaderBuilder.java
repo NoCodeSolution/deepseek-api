@@ -28,7 +28,7 @@ public final class CookieHeaderBuilder {
         }
         StringBuilder header = new StringBuilder();
         for (JsonNode c : usable) {
-            if (header.length() > 0) {
+            if (!header.isEmpty()) {
                 header.append("; ");
             }
             header.append(c.path("name").asText()).append('=').append(c.path("value").asText());
