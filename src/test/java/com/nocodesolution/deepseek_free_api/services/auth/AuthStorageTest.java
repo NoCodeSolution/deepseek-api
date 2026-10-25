@@ -8,8 +8,8 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nocodesolution.deepseek_free_api.auth.CookieHeaderBuilder;
-import com.nocodesolution.deepseek_free_api.auth.TokenNormalizer;
+import com.nocodesolution.deepseek_free_api.utils.CookieHeaderBuilder;
+import com.nocodesolution.deepseek_free_api.utils.TokenNormalizer;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;

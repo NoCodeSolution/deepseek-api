@@ -1,15 +1,14 @@
-package com.nocodesolution.deepseek_free_api.auth;
+package com.nocodesolution.deepseek_free_api.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/** Нормализация токена авторизации из различных форматов хранения. */
+/**
+ * Нормализация токена авторизации из различных форматов хранения.
+ */
 public final class TokenNormalizer {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-
-    private TokenNormalizer() {
-    }
 
     public static String normalizeToken(Object input) {
         String token;

@@ -1,17 +1,17 @@
-package com.nocodesolution.deepseek_free_api.auth;
+package com.nocodesolution.deepseek_free_api.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.nocodesolution.deepseek_free_api.exceptions.AuthStorageException;
+
 import java.util.ArrayList;
 import java.util.List;
 
-/** Построение HTTP Cookie-заголовка из JSON-массива cookies. */
+/**
+ * Построение HTTP Cookie-заголовка из JSON-массива cookies.
+ */
 public final class CookieHeaderBuilder {
 
     public static final String SESSION_COOKIE = "ds_session_id";
-
-    private CookieHeaderBuilder() {
-    }
 
     public static String cookieHeaderFromArray(JsonNode parsed) {
         if (parsed == null || !parsed.isArray()) {
