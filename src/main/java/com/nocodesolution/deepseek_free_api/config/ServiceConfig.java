@@ -17,6 +17,7 @@ import java.util.function.Supplier;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.client.RestTemplate;
 
 /** Сборка auth-подсистемы из properties (конструкторы классов — без Spring). */
@@ -51,6 +52,7 @@ public class ServiceConfig {
 
     /** Сервер стартует в любом состоянии auth; startup не открывает окно. */
     @Bean
+    @Profile("!cli")
     public ApplicationRunner authManagerStartup(AuthManager authManager) {
         return args -> authManager.startup();
     }

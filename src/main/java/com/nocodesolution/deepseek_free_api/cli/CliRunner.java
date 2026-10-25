@@ -1,9 +1,9 @@
 package com.nocodesolution.deepseek_free_api.cli;
 
-import com.nocodesolution.deepseek_free_api.services.auth.BrowserAuth;
+import com.nocodesolution.deepseek_free_api.exceptions.AuthStorageException;
 import com.nocodesolution.deepseek_free_api.exceptions.BrowserAuthException;
 import com.nocodesolution.deepseek_free_api.services.auth.AuthStorage;
-import com.nocodesolution.deepseek_free_api.exceptions.AuthStorageException;
+import com.nocodesolution.deepseek_free_api.services.auth.BrowserAuth;
 import java.io.IOException;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -13,12 +13,19 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Component;
 
 /**
  * CLI-режимы: --manual, --import, --login, --connect.
- * Объекты собираются вручную, без Spring-контекста; режимы не стартуют Tomcat.
+ * Выполняются внутри Spring-контекста, поэтому подхватываются auth.* из application.properties.
  */
-public final class CliRunner {
+@Component
+@Profile("cli")
+public class CliRunner implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(CliRunner.class);
 
@@ -41,7 +48,14 @@ public final class CliRunner {
                     .desc("Подключиться к запущенному Chrome по CDP-порту (по умолчанию 9222)")
                     .build());
 
-    private CliRunner() {
+    private final BrowserAuth browserAuth;
+    private final AuthStorage authStorage;
+    private final ApplicationContext context;
+
+    public CliRunner(BrowserAuth browserAuth, AuthStorage authStorage, ApplicationContext context) {
+        this.browserAuth = browserAuth;
+        this.authStorage = authStorage;
+        this.context = context;
     }
 
     public static boolean isCliRequest(String[] args) {
@@ -57,8 +71,13 @@ public final class CliRunner {
         }
     }
 
-    /** Выполняет CLI-режим и возвращает exit-код. */
-    public static int run(String[] args) {
+    @Override
+    public void run(String... args) {
+        int exitCode = runCli(args);
+        System.exit(SpringApplication.exit(context, () -> exitCode));
+    }
+
+    private int runCli(String[] args) {
         CommandLine line;
         try {
             line = new DefaultParser().parse(OPTIONS, args);
@@ -102,9 +121,9 @@ public final class CliRunner {
         return 0;
     }
 
-    private static int runImport(String cookiesFile, String userToken) {
+    private int runImport(String cookiesFile, String userToken) {
         try {
-            CliAuthFactory.defaultStorage().importCookies(cookiesFile, userToken);
+            authStorage.importCookies(cookiesFile, userToken);
         } catch (AuthStorageException | IOException exc) {
             log.error("Ошибка: {}", exc.getMessage());
             return 1;
@@ -114,24 +133,18 @@ public final class CliRunner {
         return 0;
     }
 
-    private static int runLogin() {
-        BrowserAuth browser = CliAuthFactory.defaultBrowser();
-        String email = CliAuthFactory.env("DS_EMAIL");
-        String password = CliAuthFactory.env("DS_PASSWORD");
+    private int runLogin() {
         try {
-            if (email != null && !email.isEmpty() && password != null && !password.isEmpty()) {
-                try {
-                    browser.headlessCredentialsLogin();
-                    log.info("Авторизация DeepSeek сохранена.");
-                    return 0;
-                } catch (BrowserAuthException exc) {
-                    log.info("Headless-логин не удался ({}), открываю окно...", exc.getMessage());
-                } catch (Exception exc) {
-                    // сырые исключения логируем по типу — не светим креды в stderr
-                    log.info("Headless-логин упал ({}), открываю окно...", exc.getClass().getSimpleName());
-                }
+            try {
+                browserAuth.headlessCredentialsLogin();
+                log.info("Авторизация DeepSeek сохранена.");
+                return 0;
+            } catch (BrowserAuthException exc) {
+                log.info("Headless-логин не удался ({}), открываю окно...", exc.getMessage());
+            } catch (Exception exc) {
+                log.info("Headless-логин упал ({}), открываю окно...", exc.getClass().getSimpleName());
             }
-            browser.loginAndSaveAuth();
+            browserAuth.loginAndSaveAuth();
             log.info("Авторизация DeepSeek сохранена.");
             return 0;
         } catch (Exception exc) {
@@ -140,9 +153,9 @@ public final class CliRunner {
         }
     }
 
-    private static int runConnect(int cdpPort) {
+    private int runConnect(int cdpPort) {
         try {
-            CliAuthFactory.defaultBrowser().connectToRunningChrome(cdpPort);
+            browserAuth.connectToRunningChrome(cdpPort);
         } catch (Exception exc) {
             log.error("Ошибка: {}", exc.getMessage());
             return 1;
@@ -151,7 +164,7 @@ public final class CliRunner {
         return 0;
     }
 
-    private static void printHelp() {
+    private void printHelp() {
         new HelpFormatter().printHelp("deepseek-free-api", OPTIONS, true);
     }
 }

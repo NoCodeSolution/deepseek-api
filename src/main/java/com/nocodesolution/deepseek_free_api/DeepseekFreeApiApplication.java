@@ -24,7 +24,9 @@ public class DeepseekFreeApiApplication {
 
     public static void main(String[] args) {
         if (CliRunner.isCliRequest(args)) {
-            System.exit(CliRunner.run(args));
+            SpringApplication app = new SpringApplication(DeepseekFreeApiApplication.class);
+            app.setAdditionalProfiles("cli");
+            System.exit(SpringApplication.exit(app.run(args)));
             return;
         }
         SpringApplication.run(DeepseekFreeApiApplication.class, args);

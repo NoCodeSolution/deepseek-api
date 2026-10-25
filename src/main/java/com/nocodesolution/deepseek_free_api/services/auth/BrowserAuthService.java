@@ -108,7 +108,7 @@ public class BrowserAuthService implements BrowserAuth {
     @Override
     public Credentials headlessCredentialsLogin() throws BrowserAuthException {
         if (email == null || email.isEmpty() || password == null || password.isEmpty()) {
-            throw new BrowserAuthException("DS_EMAIL/DS_PASSWORD не заданы");
+            throw new BrowserAuthException("auth.email/auth.password не заданы");
         }
         log.info("Headless-логин по кредам для {}", maskedEmail(email));
         try (Playwright playwright = Playwright.create()) {
