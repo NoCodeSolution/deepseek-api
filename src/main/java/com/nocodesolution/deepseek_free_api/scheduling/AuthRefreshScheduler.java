@@ -3,11 +3,13 @@ package com.nocodesolution.deepseek_free_api.scheduling;
 import com.nocodesolution.deepseek_free_api.services.auth.AuthManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /** Фоновое обновление авторизации. */
 @Component
+@Profile("!cli")
 public class AuthRefreshScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(AuthRefreshScheduler.class);
