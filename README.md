@@ -69,8 +69,10 @@ java -jar target/deepseek-free-api-0.0.1-SNAPSHOT.jar --import cookies.json "<us
 ```
 
 Если заданы `DS_EMAIL`/`DS_PASSWORD`, `--login` сначала пробует headless-логин
-по кредам, при неудаче — открывает окно. CLI-режимы также читают
-`DEEPSEEK_FREE_AUTH_DIR` и `HEADLESS_LOGIN_TIMEOUT_S`.
+по кредам, при неудаче — открывает окно. Если DeepSeek требует подтверждение аккаунта,
+headless-режим отправляет код на email и ждёт его ввод в консоли; код не сохраняется.
+После входа постоянный `browser-profile` переиспользуется для тихого обновления сессии.
+CLI-режимы также читают `DEEPSEEK_FREE_AUTH_DIR` и `HEADLESS_LOGIN_TIMEOUT_S`.
 
 ### 3. Запуск
 

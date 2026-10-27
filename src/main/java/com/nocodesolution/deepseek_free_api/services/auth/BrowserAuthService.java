@@ -10,6 +10,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.Request;
 import com.microsoft.playwright.Response;
+import com.microsoft.playwright.options.AriaRole;
 import com.microsoft.playwright.options.Cookie;
 import com.microsoft.playwright.options.WaitForSelectorState;
 import com.microsoft.playwright.options.WaitUntilState;
@@ -45,7 +46,11 @@ public class BrowserAuthService implements BrowserAuth {
     private static final Logger log = LoggerFactory.getLogger(BrowserAuthService.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private static final List<String> LAUNCH_ARGS = List.of("--disable-blink-features=AutomationControlled");
+    private static final List<String> LAUNCH_ARGS = List.of(
+            "--disable-blink-features=AutomationControlled",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--user-agent=" + browserUserAgent());
     private static final int LOGIN_TIMEOUT_S = 300;
     private static final String API_PATH_MARKER = "/api/v0/";
     private static final String SESSION_COOKIE = CookieHeaderBuilder.SESSION_COOKIE;
@@ -119,7 +124,11 @@ public class BrowserAuthService implements BrowserAuth {
                 context.onResponse(wait::onResponse);
                 try {
                     fillLoginForm(page);
-                    wait.await();
+                    if (completeVerificationIfRequired(page)) {
+                        awaitVerifiedSession(page, context);
+                    } else {
+                        wait.await();
+                    }
                 } catch (RuntimeException exc) {
                     wait.cancel();
                     throw exc;
@@ -280,6 +289,15 @@ public class BrowserAuthService implements BrowserAuth {
         }
     }
 
+    private static String browserUserAgent() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String platform = os.contains("win")
+                ? "Windows NT 10.0; Win64; x64"
+                : os.contains("mac") ? "Macintosh; Intel Mac OS X 10_15_7" : "X11; Linux x86_64";
+        return "Mozilla/5.0 (" + platform + ") AppleWebKit/537.36 (KHTML, like Gecko) "
+                + "Chrome/154.0.0.0 Safari/537.36";
+    }
+
     private Page firstPage(BrowserContext context) {
         return !context.pages().isEmpty() ? context.pages().getFirst() : context.newPage();
     }
@@ -421,8 +439,7 @@ public class BrowserAuthService implements BrowserAuth {
     }
 
     private void fillLoginForm(Page page) throws BrowserAuthException {
-        Locator emailInput = page.locator(
-                "input[type=\"email\"], input[name=\"email\"], input[placeholder*=\"mail\" i]").first();
+        Locator emailInput = page.getByRole(AriaRole.TEXTBOX).first();
         try {
             emailInput.waitFor(new Locator.WaitForOptions()
                     .setState(WaitForSelectorState.VISIBLE).setTimeout(15000));
@@ -432,7 +449,7 @@ public class BrowserAuthService implements BrowserAuth {
         }
         emailInput.fill(email);
 
-        Locator passwordInput = page.locator("input[type=\"password\"]").first();
+        Locator passwordInput = page.locator("input[type=\"password\"]");
         try {
             passwordInput.waitFor(new Locator.WaitForOptions()
                     .setState(WaitForSelectorState.VISIBLE).setTimeout(5000));
@@ -450,8 +467,7 @@ public class BrowserAuthService implements BrowserAuth {
             // чекбокс необязателен
         }
 
-        Locator submit = page.locator(
-                "button[type=\"submit\"], button:has-text(\"Log in\"), button:has-text(\"登录\")").first();
+        Locator submit = page.locator("[role=\"button\"].ds-button--primary");
         try {
             submit.waitFor(new Locator.WaitForOptions()
                     .setState(WaitForSelectorState.VISIBLE).setTimeout(5000));
@@ -459,6 +475,52 @@ public class BrowserAuthService implements BrowserAuth {
             throw new BrowserAuthException("Не нашёл кнопку входа в форме логина", exc);
         }
         submit.click();
+    }
+
+    private boolean completeVerificationIfRequired(Page page) throws BrowserAuthException {
+        Locator codeInput = page.locator("input[autocomplete=\"one-time-code\"]");
+        try {
+            codeInput.waitFor(new Locator.WaitForOptions()
+                    .setState(WaitForSelectorState.VISIBLE).setTimeout(5000));
+        } catch (Exception exc) {
+            return false;
+        }
+
+        page.locator("[role=\"button\"].ds-verify-code-input-countdown").click();
+        page.waitForFunction(
+                "el => el && !el.disabled",
+                codeInput.elementHandle(),
+                new Page.WaitForFunctionOptions().setTimeout(Math.max(30000, headlessLoginTimeoutS * 1000)));
+        final String rawCode;
+        try {
+            System.out.print("DeepSeek отправил код подтверждения. Введите 6 цифр и нажмите Enter: ");
+            System.out.flush();
+            rawCode = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).readLine();
+        } catch (IOException exc) {
+            throw new BrowserAuthException("Не удалось прочитать код подтверждения из консоли", exc);
+        }
+        if (rawCode == null || !rawCode.trim().matches("\\d{6}")) {
+            throw new BrowserAuthException("Код подтверждения должен состоять из 6 цифр");
+        }
+
+        codeInput.fill(rawCode.trim());
+        page.locator("[role=\"button\"].ds-mfa-verification-submit").click();
+        return true;
+    }
+
+    private void awaitVerifiedSession(Page page, BrowserContext context) throws BrowserAuthException {
+        long deadline = System.currentTimeMillis() + (long) (headlessLoginTimeoutS * 1000);
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                if (!readToken(page).isEmpty() && hasSessionCookie(context.cookies(List.of(baseUrl)))) {
+                    return;
+                }
+            } catch (RuntimeException ignored) {
+                // Страница может перезагружаться после подтверждения кода.
+            }
+            page.waitForTimeout(500);
+        }
+        throw new BrowserAuthException("Таймаут подтверждения кода " + (long) headlessLoginTimeoutS + " с.");
     }
 
     private static String maskedEmail(String email) {
