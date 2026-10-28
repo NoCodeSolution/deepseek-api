@@ -98,6 +98,25 @@ class BrowserAuthServiceTest {
     }
 
     @Test
+    void silentRefreshRejectsPlaceholderSessionOnLoginPage() throws Exception {
+        Playwright playwright = mock(Playwright.class);
+        BrowserContext context = mock(BrowserContext.class);
+        Page page = mock(Page.class);
+        stubLaunch(playwright, context, page);
+        stubSession(context, page);
+        when(page.url()).thenReturn(BASE_URL + "/sign_in");
+
+        try (MockedStatic<Playwright> playwrightStatic = mockStatic(Playwright.class)) {
+            playwrightStatic.when(Playwright::create).thenReturn(playwright);
+            assertNull(service.refreshFromProfile());
+        }
+
+        verify(authStorage, times(0)).writeSavedAuth(any(), any());
+        verify(context).close();
+        verify(playwright).close();
+    }
+
+    @Test
     void headlessLoginClosesBrowserAfterSuccess() throws Exception {
         Playwright playwright = mock(Playwright.class);
         BrowserContext context = mock(BrowserContext.class);
@@ -138,7 +157,7 @@ class BrowserAuthServiceTest {
             System.setIn(originalInput);
         }
 
-        verify(sendCode).click();
+        verify(sendCode, times(0)).click();
         verify(codeInput).fill("123456");
         verify(verifyButton).click();
         verify(context).close();
@@ -264,6 +283,7 @@ class BrowserAuthServiceTest {
     private static void stubSession(BrowserContext context, Page page) {
         when(context.cookies(List.of(BASE_URL))).thenReturn(List.of(new Cookie("ds_session_id", "session")));
         when(page.evaluate(any(String.class))).thenReturn("token");
+        when(page.url()).thenReturn(BASE_URL + "/");
     }
 
     private void invokeFillLoginForm(Page page) throws Exception {

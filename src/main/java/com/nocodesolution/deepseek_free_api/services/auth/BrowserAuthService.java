@@ -100,7 +100,7 @@ public class BrowserAuthService implements BrowserAuth {
                 }
                 List<Cookie> cookies = context.cookies(List.of(baseUrl));
                 String token = readToken(page);
-                if (token.isEmpty() || !hasSessionCookie(cookies)) {
+                if (isLoginPage(page) || token.isEmpty() || !hasSessionCookie(cookies)) {
                     return null;
                 }
                 return saveSession(cookies, token, false);
@@ -307,6 +307,11 @@ public class BrowserAuthService implements BrowserAuth {
         return TokenNormalizer.normalizeToken(raw == null ? "" : String.valueOf(raw));
     }
 
+    private static boolean isLoginPage(Page page) {
+        String url = page.url();
+        return url != null && url.contains("/sign_in");
+    }
+
     private static boolean hasSessionCookie(List<Cookie> cookies) {
         for (Cookie c : cookies) {
             if (SESSION_COOKIE.equals(c.name)) {
@@ -486,14 +491,17 @@ public class BrowserAuthService implements BrowserAuth {
             return false;
         }
 
-        page.locator("[role=\"button\"].ds-verify-code-input-countdown").click();
-        page.waitForFunction(
-                "el => el && !el.disabled",
-                codeInput.elementHandle(),
-                new Page.WaitForFunctionOptions().setTimeout(Math.max(30000, headlessLoginTimeoutS * 1000)));
+        String code = readVerificationCodeFromConsole();
+        codeInput.evaluate("el => { el.disabled = false; }");
+        codeInput.fill(code);
+        page.locator("[role=\"button\"].ds-mfa-verification-submit").click();
+        return true;
+    }
+
+    private String readVerificationCodeFromConsole() throws BrowserAuthException {
         final String rawCode;
         try {
-            System.out.print("DeepSeek отправил код подтверждения. Введите 6 цифр и нажмите Enter: ");
+            System.out.print("Введите 6 цифр полученного ранее кода DeepSeek и нажмите Enter: ");
             System.out.flush();
             rawCode = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).readLine();
         } catch (IOException exc) {
@@ -502,17 +510,16 @@ public class BrowserAuthService implements BrowserAuth {
         if (rawCode == null || !rawCode.trim().matches("\\d{6}")) {
             throw new BrowserAuthException("Код подтверждения должен состоять из 6 цифр");
         }
-
-        codeInput.fill(rawCode.trim());
-        page.locator("[role=\"button\"].ds-mfa-verification-submit").click();
-        return true;
+        return rawCode.trim();
     }
 
     private void awaitVerifiedSession(Page page, BrowserContext context) throws BrowserAuthException {
         long deadline = System.currentTimeMillis() + (long) (headlessLoginTimeoutS * 1000);
         while (System.currentTimeMillis() < deadline) {
             try {
-                if (!readToken(page).isEmpty() && hasSessionCookie(context.cookies(List.of(baseUrl)))) {
+                if (!isLoginPage(page)
+                        && !readToken(page).isEmpty()
+                        && hasSessionCookie(context.cookies(List.of(baseUrl)))) {
                     return;
                 }
             } catch (RuntimeException ignored) {
